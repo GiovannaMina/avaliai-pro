@@ -26,6 +26,7 @@ const Index = () => {
             title={proposalMetadata.title}
             date={proposalMetadata.date}
             client={proposalMetadata.client}
+            onUpdateProposal={handleUpdateProposal}
           />
         </div>
 
