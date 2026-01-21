@@ -1,6 +1,7 @@
-import { Copy, Download, FileText, Check } from 'lucide-react';
+import { Copy, Download, FileText, Check, Share2, Link } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import { toast } from '@/hooks/use-toast';
 
 interface ProposalViewerProps {
   proposal: string;
@@ -11,11 +12,37 @@ interface ProposalViewerProps {
 
 export function ProposalViewer({ proposal, title, date, client }: ProposalViewerProps) {
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(proposal);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${title} - ${client}`,
+          text: `Confira a proposta comercial: ${title}`,
+          url: shareUrl,
+        });
+      } catch (err) {
+        // User cancelled or error - fallback to copy
+        await navigator.clipboard.writeText(shareUrl);
+        setLinkCopied(true);
+        toast({ title: 'Link copiado!', description: 'O link foi copiado para a área de transferência.' });
+        setTimeout(() => setLinkCopied(false), 2000);
+      }
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      setLinkCopied(true);
+      toast({ title: 'Link copiado!', description: 'O link foi copiado para a área de transferência.' });
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
   };
 
   const handleDownload = () => {
@@ -44,6 +71,24 @@ export function ProposalViewer({ proposal, title, date, client }: ProposalViewer
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleShare}
+            className="gap-2"
+          >
+            {linkCopied ? (
+              <>
+                <Check className="w-4 h-4 text-green-600" />
+                Link copiado!
+              </>
+            ) : (
+              <>
+                <Share2 className="w-4 h-4" />
+                Compartilhar
+              </>
+            )}
+          </Button>
           <Button
             variant="outline"
             size="sm"
