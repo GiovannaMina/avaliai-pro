@@ -1,8 +1,9 @@
-import { Copy, Download, FileText, Check, Share2, Pencil, Eye } from 'lucide-react';
+import { Copy, Download, FileText, Check, Share2, Pencil, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
+import { downloadProposalPDF, getProposalPDFDataUrl } from '@/utils/pdfGenerator';
 
 interface ProposalViewerProps {
   proposal: string;
@@ -17,6 +18,12 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
   const [isEditing, setIsEditing] = useState(false);
   const [editedProposal, setEditedProposal] = useState(proposal);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [viewMode, setViewMode] = useState<'text' | 'pdf'>('pdf');
+
+  // Generate PDF URL for preview
+  const pdfUrl = useMemo(() => {
+    return getProposalPDFDataUrl(proposal, { title, client, date });
+  }, [proposal, title, client, date]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(proposal);
@@ -50,15 +57,8 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
   };
 
   const handleDownload = () => {
-    const blob = new Blob([proposal], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `proposta-${client.toLowerCase().replace(/\s+/g, '-')}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadProposalPDF(proposal, { title, client, date });
+    toast({ title: 'PDF baixado!', description: 'A proposta foi baixada em formato PDF.' });
   };
 
   const handleSaveEdit = () => {
@@ -153,12 +153,21 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
                 )}
               </Button>
               <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewMode(viewMode === 'pdf' ? 'text' : 'pdf')}
+                className="gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                {viewMode === 'pdf' ? 'Ver Texto' : 'Ver PDF'}
+              </Button>
+              <Button
                 size="sm"
                 onClick={handleDownload}
                 className="gap-2 gradient-brand text-primary-foreground hover:opacity-90"
               >
-                <Download className="w-4 h-4" />
-                Baixar
+                <FileDown className="w-4 h-4" />
+                Baixar PDF
               </Button>
             </>
           )}
@@ -166,17 +175,29 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
       </div>
 
       {/* Document Content */}
-      <div className="flex-1 overflow-auto p-8 scrollbar-thin">
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-card rounded-xl p-8 shadow-card border">
-            {isEditing ? (
+      <div className="flex-1 overflow-auto p-4 md:p-8 scrollbar-thin">
+        {isEditing ? (
+          <div className="max-w-3xl mx-auto">
+            <div className="bg-card rounded-xl p-8 shadow-card border">
               <Textarea
                 value={editedProposal}
                 onChange={(e) => setEditedProposal(e.target.value)}
                 className="min-h-[600px] font-mono text-sm resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 bg-transparent"
                 placeholder="Digite o conteúdo da proposta..."
               />
-            ) : (
+            </div>
+          </div>
+        ) : viewMode === 'pdf' ? (
+          <div className="h-full w-full max-w-4xl mx-auto">
+            <iframe
+              src={pdfUrl}
+              className="w-full h-full min-h-[700px] rounded-xl border shadow-card bg-card"
+              title="Visualização da Proposta em PDF"
+            />
+          </div>
+        ) : (
+          <div className="max-w-3xl mx-auto">
+            <div className="bg-card rounded-xl p-8 shadow-card border">
               <div className="prose-proposal whitespace-pre-wrap">
                 {proposal.split('\n').map((line, i) => {
                   if (line.startsWith('# ')) {
@@ -200,9 +221,9 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
                   return <p key={i} className="mb-2 text-muted-foreground leading-relaxed">{line}</p>;
                 })}
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
