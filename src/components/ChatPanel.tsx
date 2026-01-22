@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, User } from 'lucide-react';
+import { Send, Sparkles, User, Plus, FileText, X, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Logo } from './Logo';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  attachments?: { name: string; }[];
 }
 
 interface ChatPanelProps {
@@ -26,8 +26,10 @@ export function ChatPanel({ onUpdateProposal }: ChatPanelProps) {
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<{ id: string; name: string; content: string }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -37,19 +39,51 @@ export function ChatPanel({ onUpdateProposal }: ChatPanelProps) {
     scrollToBottom();
   }, [messages]);
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const uploadedFiles = e.target.files;
+    if (!uploadedFiles) return;
+
+    Array.from(uploadedFiles).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        setAttachedFiles((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString() + Math.random(),
+            name: file.name,
+            content,
+          },
+        ]);
+      };
+      reader.readAsText(file);
+    });
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeAttachedFile = (id: string) => {
+    setAttachedFiles((prev) => prev.filter((f) => f.id !== id));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() && attachedFiles.length === 0) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: input.trim(),
       timestamp: new Date(),
+      attachments: attachedFiles.map(f => ({ name: f.name })),
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
+    setAttachedFiles([]);
     setIsTyping(true);
 
     // Simulate AI response
@@ -123,6 +157,24 @@ export function ChatPanel({ onUpdateProposal }: ChatPanelProps) {
                   : 'bg-card border shadow-sm rounded-bl-md'
               }`}
             >
+              {/* Show attachments if any */}
+              {message.attachments && message.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {message.attachments.map((att, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full ${
+                        message.role === 'user'
+                          ? 'bg-primary-foreground/20 text-primary-foreground'
+                          : 'bg-accent text-accent-foreground'
+                      }`}
+                    >
+                      <Paperclip className="w-3 h-3" />
+                      <span className="truncate max-w-[100px]">{att.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <p className="text-sm leading-relaxed">{message.content}</p>
             </div>
             {message.role === 'user' && (
@@ -169,9 +221,53 @@ export function ChatPanel({ onUpdateProposal }: ChatPanelProps) {
         </div>
       )}
 
+      {/* Attached Files Preview */}
+      {attachedFiles.length > 0 && (
+        <div className="px-4 pb-2">
+          <div className="flex flex-wrap gap-2">
+            {attachedFiles.map((file) => (
+              <div
+                key={file.id}
+                className="flex items-center gap-1.5 bg-accent rounded-full px-3 py-1.5 text-xs"
+              >
+                <FileText className="w-3 h-3 text-primary" />
+                <span className="text-accent-foreground truncate max-w-[100px]">
+                  {file.name}
+                </span>
+                <button
+                  onClick={() => removeAttachedFile(file.id)}
+                  className="p-0.5 hover:bg-primary/10 rounded-full transition-colors"
+                >
+                  <X className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <div className="p-4 border-t bg-card/50">
-        <form onSubmit={handleSubmit} className="flex gap-2">
+        <form onSubmit={handleSubmit} className="flex gap-2 items-end">
+          {/* File Upload Button */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.md,.doc,.docx,.pdf"
+            multiple
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex-shrink-0 h-[44px] w-[44px] rounded-xl"
+          >
+            <Plus className="w-5 h-5" />
+          </Button>
+
           <Textarea
             ref={textareaRef}
             value={input}
@@ -184,8 +280,8 @@ export function ChatPanel({ onUpdateProposal }: ChatPanelProps) {
           <Button
             type="submit"
             size="icon"
-            disabled={!input.trim() || isTyping}
-            className="gradient-brand text-primary-foreground hover:opacity-90 flex-shrink-0"
+            disabled={(!input.trim() && attachedFiles.length === 0) || isTyping}
+            className="gradient-brand text-primary-foreground hover:opacity-90 flex-shrink-0 h-[44px] w-[44px]"
           >
             <Send className="w-4 h-4" />
           </Button>
