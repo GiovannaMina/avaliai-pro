@@ -178,6 +178,61 @@
   .prose-proposal strong {
     @apply font-semibold text-foreground;
   }
+
+  /* TipTap Editor Styles */
+  .ProseMirror {
+    outline: none;
+    min-height: 100%;
+  }
+
+  .ProseMirror h1 {
+    @apply text-2xl font-bold mb-4 text-foreground;
+  }
+
+  .ProseMirror h2 {
+    @apply text-xl font-semibold mb-3 mt-6 text-foreground;
+  }
+
+  .ProseMirror h3 {
+    @apply text-lg font-medium mb-2 mt-4 text-foreground;
+  }
+
+  .ProseMirror p {
+    @apply mb-3 text-foreground leading-relaxed;
+  }
+
+  .ProseMirror ul, .ProseMirror ol {
+    @apply mb-4 pl-6 space-y-1;
+  }
+
+  .ProseMirror ul {
+    @apply list-disc;
+  }
+
+  .ProseMirror ol {
+    @apply list-decimal;
+  }
+
+  .ProseMirror li {
+    @apply text-foreground;
+  }
+
+  .ProseMirror strong {
+    @apply font-semibold;
+  }
+
+  .ProseMirror em {
+    @apply italic;
+  }
+
+  .ProseMirror u {
+    @apply underline;
+  }
+
+  .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    @apply text-muted-foreground pointer-events-none float-left h-0;
+  }
 }
 
 @layer utilities {
