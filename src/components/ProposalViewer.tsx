@@ -1,9 +1,15 @@
-import { Copy, Download, FileText, Check, Share2, Pencil, FileDown } from 'lucide-react';
+import { Copy, Download, FileText, Check, Share2, Pencil, FileDown, Link, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { downloadProposalPDF, getProposalPDFDataUrl } from '@/utils/pdfGenerator';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface ProposalViewerProps {
   proposal: string;
@@ -14,50 +20,29 @@ interface ProposalViewerProps {
 }
 
 export function ProposalViewer({ proposal, title, date, client, onUpdateProposal }: ProposalViewerProps) {
-  const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedProposal, setEditedProposal] = useState(proposal);
-  const [linkCopied, setLinkCopied] = useState(false);
-  const [viewMode, setViewMode] = useState<'text' | 'pdf'>('pdf');
 
-  // Generate PDF URL for preview
+  // Update editedProposal when proposal changes externally
+  useEffect(() => {
+    setEditedProposal(proposal);
+  }, [proposal]);
+
+  // Generate PDF URL for preview - updates in real-time during editing
   const pdfUrl = useMemo(() => {
-    return getProposalPDFDataUrl(proposal, { title, client, date });
-  }, [proposal, title, client, date]);
+    const content = isEditing ? editedProposal : proposal;
+    return getProposalPDFDataUrl(content, { title, client, date });
+  }, [isEditing ? editedProposal : proposal, title, client, date, isEditing]);
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(proposal);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleShare = async () => {
+  const handleCopyLink = async () => {
     const shareUrl = window.location.href;
-    
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `${title} - ${client}`,
-          text: `Confira a proposta comercial: ${title}`,
-          url: shareUrl,
-        });
-      } catch (err) {
-        // User cancelled or error - fallback to copy
-        await navigator.clipboard.writeText(shareUrl);
-        setLinkCopied(true);
-        toast({ title: 'Link copiado!', description: 'O link foi copiado para a área de transferência.' });
-        setTimeout(() => setLinkCopied(false), 2000);
-      }
-    } else {
-      await navigator.clipboard.writeText(shareUrl);
-      setLinkCopied(true);
-      toast({ title: 'Link copiado!', description: 'O link foi copiado para a área de transferência.' });
-      setTimeout(() => setLinkCopied(false), 2000);
-    }
+    await navigator.clipboard.writeText(shareUrl);
+    toast({ title: 'Link copiado!', description: 'O link foi copiado para a área de transferência.' });
   };
 
   const handleDownload = () => {
-    downloadProposalPDF(proposal, { title, client, date });
+    const content = isEditing ? editedProposal : proposal;
+    downloadProposalPDF(content, { title, client, date });
     toast({ title: 'PDF baixado!', description: 'A proposta foi baixada em formato PDF.' });
   };
 
@@ -116,59 +101,31 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
                 <Pencil className="w-4 h-4" />
                 Editar
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleShare}
-                className="gap-2"
-              >
-                {linkCopied ? (
-                  <>
-                    <Check className="w-4 h-4 text-green-600" />
-                    Link copiado!
-                  </>
-                ) : (
-                  <>
+
+              {/* Share Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                  >
                     <Share2 className="w-4 h-4" />
                     Compartilhar
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopy}
-                className="gap-2"
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-4 h-4 text-green-600" />
-                    Copiado!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-4 h-4" />
-                    Copiar
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setViewMode(viewMode === 'pdf' ? 'text' : 'pdf')}
-                className="gap-2"
-              >
-                <FileText className="w-4 h-4" />
-                {viewMode === 'pdf' ? 'Ver Texto' : 'Ver PDF'}
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleDownload}
-                className="gap-2 gradient-brand text-primary-foreground hover:opacity-90"
-              >
-                <FileDown className="w-4 h-4" />
-                Baixar PDF
-              </Button>
+                    <ChevronDown className="w-3 h-3 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={handleCopyLink} className="gap-2 cursor-pointer">
+                    <Link className="w-4 h-4" />
+                    Copiar link
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDownload} className="gap-2 cursor-pointer">
+                    <FileDown className="w-4 h-4" />
+                    Baixar PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
         </div>
@@ -177,51 +134,47 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
       {/* Document Content */}
       <div className="flex-1 overflow-auto p-4 md:p-8 scrollbar-thin">
         {isEditing ? (
-          <div className="max-w-3xl mx-auto">
-            <div className="bg-card rounded-xl p-8 shadow-card border">
-              <Textarea
-                value={editedProposal}
-                onChange={(e) => setEditedProposal(e.target.value)}
-                className="min-h-[600px] font-mono text-sm resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 bg-transparent"
-                placeholder="Digite o conteúdo da proposta..."
-              />
+          /* Side-by-side editing with real-time PDF preview */
+          <div className="h-full flex gap-6">
+            {/* Text Editor */}
+            <div className="flex-1 min-w-0">
+              <div className="h-full bg-card rounded-xl p-6 shadow-card border flex flex-col">
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b">
+                  <FileText className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">Editor de Texto</span>
+                </div>
+                <Textarea
+                  value={editedProposal}
+                  onChange={(e) => setEditedProposal(e.target.value)}
+                  className="flex-1 min-h-0 font-mono text-sm resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 bg-transparent"
+                  placeholder="Digite o conteúdo da proposta..."
+                />
+              </div>
+            </div>
+            
+            {/* PDF Preview */}
+            <div className="flex-1 min-w-0 hidden lg:block">
+              <div className="h-full bg-card rounded-xl shadow-card border flex flex-col overflow-hidden">
+                <div className="flex items-center gap-2 px-6 py-4 border-b">
+                  <FileDown className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">Preview do PDF</span>
+                </div>
+                <iframe
+                  src={pdfUrl}
+                  className="flex-1 w-full"
+                  title="Preview do PDF em tempo real"
+                />
+              </div>
             </div>
           </div>
-        ) : viewMode === 'pdf' ? (
+        ) : (
+          /* PDF View */
           <div className="h-full w-full max-w-4xl mx-auto">
             <iframe
               src={pdfUrl}
               className="w-full h-full min-h-[700px] rounded-xl border shadow-card bg-card"
               title="Visualização da Proposta em PDF"
             />
-          </div>
-        ) : (
-          <div className="max-w-3xl mx-auto">
-            <div className="bg-card rounded-xl p-8 shadow-card border">
-              <div className="prose-proposal whitespace-pre-wrap">
-                {proposal.split('\n').map((line, i) => {
-                  if (line.startsWith('# ')) {
-                    return <h1 key={i} className="text-2xl font-bold mb-4 text-foreground">{line.replace('# ', '')}</h1>;
-                  }
-                  if (line.startsWith('## ')) {
-                    return <h2 key={i} className="text-xl font-semibold mb-3 mt-6 text-foreground">{line.replace('## ', '')}</h2>;
-                  }
-                  if (line.startsWith('### ')) {
-                    return <h3 key={i} className="text-lg font-medium mb-2 mt-4 text-foreground">{line.replace('### ', '')}</h3>;
-                  }
-                  if (line.startsWith('- ')) {
-                    return <li key={i} className="ml-4 mb-1 text-muted-foreground">{line.replace('- ', '')}</li>;
-                  }
-                  if (line.startsWith('**') && line.endsWith('**')) {
-                    return <p key={i} className="font-semibold mb-2 text-foreground">{line.replace(/\*\*/g, '')}</p>;
-                  }
-                  if (line.trim() === '') {
-                    return <div key={i} className="h-3" />;
-                  }
-                  return <p key={i} className="mb-2 text-muted-foreground leading-relaxed">{line}</p>;
-                })}
-              </div>
-            </div>
           </div>
         )}
       </div>

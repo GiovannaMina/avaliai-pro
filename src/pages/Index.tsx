@@ -1,31 +1,83 @@
 import { useState } from 'react';
 import { Header } from '@/components/Header';
 import { ProposalViewer } from '@/components/ProposalViewer';
+import { ProposalGenerator } from '@/components/ProposalGenerator';
 import { ChatPanel } from '@/components/ChatPanel';
 import { sampleProposal, proposalMetadata } from '@/data/sampleProposal';
 import { MessageSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+interface UploadedFile {
+  id: string;
+  name: string;
+  content: string;
+}
+
 const Index = () => {
-  const [proposal, setProposal] = useState(sampleProposal);
+  const [proposal, setProposal] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [metadata, setMetadata] = useState(proposalMetadata);
 
   const handleUpdateProposal = (newProposal: string) => {
     setProposal(newProposal);
   };
 
+  const handleGenerate = (prompt: string, files: UploadedFile[]) => {
+    setIsGenerating(true);
+    
+    // Simulate generation delay
+    setTimeout(() => {
+      // If files were uploaded, use their content; otherwise use sample
+      let generatedContent = sampleProposal;
+      
+      if (files.length > 0) {
+        // Combine file contents
+        generatedContent = files.map(f => f.content).join('\n\n---\n\n');
+      }
+      
+      // Add prompt context if provided
+      if (prompt.trim()) {
+        generatedContent = `# Proposta Gerada\n\n**Contexto:** ${prompt}\n\n---\n\n${generatedContent}`;
+      }
+      
+      setProposal(generatedContent);
+      setMetadata({
+        ...proposalMetadata,
+        title: 'Proposta Comercial',
+        date: new Date().toLocaleDateString('pt-BR'),
+      });
+      setIsGenerating(false);
+    }, 2000);
+  };
+
+  const handleBackToGenerator = () => {
+    setProposal(null);
+  };
+
+  // Show generator if no proposal has been generated yet
+  if (!proposal) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <ProposalGenerator onGenerate={handleGenerate} isGenerating={isGenerating} />
+      </div>
+    );
+  }
+
+  // Show proposal viewer with chat panel
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col">
-      <Header />
+      <Header onBackToGenerator={handleBackToGenerator} showBackButton />
       
       <div className="flex-1 flex relative">
         {/* Main Content - Proposal Viewer */}
         <div className={`flex-1 transition-all duration-300 ${isChatOpen ? 'lg:mr-[380px]' : ''}`}>
           <ProposalViewer
             proposal={proposal}
-            title={proposalMetadata.title}
-            date={proposalMetadata.date}
-            client={proposalMetadata.client}
+            title={metadata.title}
+            date={metadata.date}
+            client={metadata.client}
             onUpdateProposal={handleUpdateProposal}
           />
         </div>
