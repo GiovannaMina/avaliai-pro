@@ -3,6 +3,7 @@ import { Header } from '@/components/Header';
 import { ProposalViewer } from '@/components/ProposalViewer';
 import { ProposalGenerator } from '@/components/ProposalGenerator';
 import { ChatPanel } from '@/components/ChatPanel';
+import { Dashboard } from '@/pages/Dashboard';
 import { sampleProposal, proposalMetadata } from '@/data/sampleProposal';
 import { MessageSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,9 +12,13 @@ interface UploadedFile {
   id: string;
   name: string;
   content: string;
+  comment: string;
 }
 
+type Screen = 'dashboard' | 'generator' | 'viewer';
+
 const Index = () => {
+  const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [proposal, setProposal] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -23,7 +28,7 @@ const Index = () => {
     setProposal(newProposal);
   };
 
-  const handleGenerate = (prompt: string, files: UploadedFile[]) => {
+  const handleGenerate = (files: UploadedFile[]) => {
     setIsGenerating(true);
     
     // Simulate generation delay
@@ -32,13 +37,15 @@ const Index = () => {
       let generatedContent = sampleProposal;
       
       if (files.length > 0) {
-        // Combine file contents
-        generatedContent = files.map(f => f.content).join('\n\n---\n\n');
-      }
-      
-      // Add prompt context if provided
-      if (prompt.trim()) {
-        generatedContent = `# Proposta Gerada\n\n**Contexto:** ${prompt}\n\n---\n\n${generatedContent}`;
+        // Combine file contents with comments
+        const fileContents = files.map(f => {
+          let content = f.content;
+          if (f.comment) {
+            content = `**Observação:** ${f.comment}\n\n${content}`;
+          }
+          return content;
+        });
+        generatedContent = fileContents.join('\n\n---\n\n');
       }
       
       setProposal(generatedContent);
@@ -48,24 +55,43 @@ const Index = () => {
         date: new Date().toLocaleDateString('pt-BR'),
       });
       setIsGenerating(false);
+      setCurrentScreen('viewer');
     }, 2000);
   };
 
-  const handleBackToGenerator = () => {
+  const handleNavigateToModule = (moduleId: string) => {
+    if (moduleId === 'proposal-generator') {
+      setCurrentScreen('generator');
+    }
+  };
+
+  const handleBackToDashboard = () => {
+    setCurrentScreen('dashboard');
     setProposal(null);
   };
 
-  // Show generator if no proposal has been generated yet
-  if (!proposal) {
+  const handleBackToGenerator = () => {
+    setCurrentScreen('generator');
+    setProposal(null);
+  };
+
+  // Dashboard screen
+  if (currentScreen === 'dashboard') {
+    return <Dashboard onNavigateToModule={handleNavigateToModule} />;
+  }
+
+  // Generator screen
+  if (currentScreen === 'generator') {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        <ProposalGenerator onGenerate={handleGenerate} isGenerating={isGenerating} />
-      </div>
+      <ProposalGenerator 
+        onGenerate={handleGenerate} 
+        onBack={handleBackToDashboard}
+        isGenerating={isGenerating} 
+      />
     );
   }
 
-  // Show proposal viewer with chat panel
+  // Proposal viewer screen
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col">
       <Header onBackToGenerator={handleBackToGenerator} showBackButton />
@@ -74,7 +100,7 @@ const Index = () => {
         {/* Main Content - Proposal Viewer */}
         <div className={`flex-1 transition-all duration-300 ${isChatOpen ? 'lg:mr-[380px]' : ''}`}>
           <ProposalViewer
-            proposal={proposal}
+            proposal={proposal || ''}
             title={metadata.title}
             date={metadata.date}
             client={metadata.client}

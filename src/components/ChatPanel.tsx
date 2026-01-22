@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, User, Plus, FileText, X, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { FileAttachmentDialog } from '@/components/FileAttachmentDialog';
 
 interface Message {
   id: string;
@@ -27,9 +28,9 @@ export function ChatPanel({ onUpdateProposal }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<{ id: string; name: string; content: string }[]>([]);
+  const [isFileDialogOpen, setIsFileDialogOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -39,11 +40,8 @@ export function ChatPanel({ onUpdateProposal }: ChatPanelProps) {
     scrollToBottom();
   }, [messages]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFiles = e.target.files;
-    if (!uploadedFiles) return;
-
-    Array.from(uploadedFiles).forEach((file) => {
+  const handleFileSelect = (files: FileList) => {
+    Array.from(files).forEach((file) => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const content = event.target?.result as string;
@@ -58,11 +56,6 @@ export function ChatPanel({ onUpdateProposal }: ChatPanelProps) {
       };
       reader.readAsText(file);
     });
-
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
   };
 
   const removeAttachedFile = (id: string) => {
@@ -250,19 +243,11 @@ export function ChatPanel({ onUpdateProposal }: ChatPanelProps) {
       <div className="p-4 border-t bg-card/50">
         <form onSubmit={handleSubmit} className="flex gap-2 items-end">
           {/* File Upload Button */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".txt,.md,.doc,.docx,.pdf"
-            multiple
-            onChange={handleFileUpload}
-            className="hidden"
-          />
           <Button
             type="button"
             size="icon"
             variant="outline"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setIsFileDialogOpen(true)}
             className="flex-shrink-0 h-[44px] w-[44px] rounded-xl"
           >
             <Plus className="w-5 h-5" />
@@ -287,6 +272,13 @@ export function ChatPanel({ onUpdateProposal }: ChatPanelProps) {
           </Button>
         </form>
       </div>
+
+      {/* File Attachment Dialog */}
+      <FileAttachmentDialog
+        open={isFileDialogOpen}
+        onOpenChange={setIsFileDialogOpen}
+        onFileSelect={handleFileSelect}
+      />
     </div>
   );
 }

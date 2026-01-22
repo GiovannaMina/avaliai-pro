@@ -2,7 +2,7 @@ import { Copy, Download, FileText, Check, Share2, Pencil, FileDown, Link, Chevro
 import { Button } from '@/components/ui/button';
 import { useState, useMemo, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/RichTextEditor';
 import { downloadProposalPDF, getProposalPDFDataUrl } from '@/utils/pdfGenerator';
 import {
   DropdownMenu,
@@ -55,6 +55,10 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
   const handleCancelEdit = () => {
     setEditedProposal(proposal);
     setIsEditing(false);
+  };
+
+  const handleEditorChange = (content: string) => {
+    setEditedProposal(content);
   };
 
   return (
@@ -136,20 +140,12 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
         {isEditing ? (
           /* Side-by-side editing with real-time PDF preview */
           <div className="h-full flex gap-6">
-            {/* Text Editor */}
+            {/* Rich Text Editor */}
             <div className="flex-1 min-w-0">
-              <div className="h-full bg-card rounded-xl p-6 shadow-card border flex flex-col">
-                <div className="flex items-center gap-2 mb-4 pb-3 border-b">
-                  <FileText className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">Editor de Texto</span>
-                </div>
-                <Textarea
-                  value={editedProposal}
-                  onChange={(e) => setEditedProposal(e.target.value)}
-                  className="flex-1 min-h-0 font-mono text-sm resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 bg-transparent"
-                  placeholder="Digite o conteúdo da proposta..."
-                />
-              </div>
+              <RichTextEditor
+                content={editedProposal}
+                onChange={handleEditorChange}
+              />
             </div>
             
             {/* PDF Preview */}
