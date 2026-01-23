@@ -4,6 +4,7 @@ import { ProposalViewer } from '@/components/ProposalViewer';
 import { ProposalGenerator } from '@/components/ProposalGenerator';
 import { ChatPanel } from '@/components/ChatPanel';
 import { Dashboard } from '@/pages/Dashboard';
+import { sampleProposal, proposalMetadata } from '@/data/sampleProposal';
 import { MessageSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -21,11 +22,7 @@ const Index = () => {
   const [proposal, setProposal] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [metadata, setMetadata] = useState({
-    title: 'Proposta Comercial',
-    client: '',
-    date: new Date().toLocaleDateString('pt-BR'),
-  });
+  const [metadata, setMetadata] = useState(proposalMetadata);
 
   const handleUpdateProposal = (newProposal: string) => {
     setProposal(newProposal);
@@ -34,16 +31,27 @@ const Index = () => {
   const handleGenerate = (files: UploadedFile[]) => {
     setIsGenerating(true);
     
-    // Simulate AI generation delay - in the future, this will call the AI
+    // Simulate generation delay
     setTimeout(() => {
-      // Placeholder: AI will generate the proposal based on files
-      // For now, just pass empty content - the real AI will populate this
-      const generatedContent = '';
+      // If files were uploaded, use their content; otherwise use sample
+      let generatedContent = sampleProposal;
+      
+      if (files.length > 0) {
+        // Combine file contents with comments
+        const fileContents = files.map(f => {
+          let content = f.content;
+          if (f.comment) {
+            content = `**Observação:** ${f.comment}\n\n${content}`;
+          }
+          return content;
+        });
+        generatedContent = fileContents.join('\n\n---\n\n');
+      }
       
       setProposal(generatedContent);
       setMetadata({
+        ...proposalMetadata,
         title: 'Proposta Comercial',
-        client: '',
         date: new Date().toLocaleDateString('pt-BR'),
       });
       setIsGenerating(false);

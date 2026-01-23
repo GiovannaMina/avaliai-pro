@@ -16,7 +16,6 @@ import {
   Heading3,
   Undo,
   Redo,
-  Minus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -179,16 +178,6 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
 
         <Separator orientation="vertical" className="h-6 mx-1" />
 
-        {/* Divider */}
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setHorizontalRule().run()}
-          title="Divisória"
-        >
-          <Minus className="w-4 h-4" />
-        </ToolbarButton>
-
-        <Separator orientation="vertical" className="h-6 mx-1" />
-
         {/* Alignment */}
         <ToolbarButton
           onClick={() => editor.chain().focus().setTextAlign('left').run()}
@@ -225,9 +214,6 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
 function convertMarkdownToHtml(markdown: string): string {
   let html = markdown;
   
-  // Horizontal rule (before other processing)
-  html = html.replace(/^---$/gm, '<hr>');
-  
   // Headers
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
@@ -247,7 +233,7 @@ function convertMarkdownToHtml(markdown: string): string {
   const lines = html.split('\n');
   html = lines.map(line => {
     if (line.trim() === '') return '<p></p>';
-    if (line.startsWith('<h') || line.startsWith('<ul') || line.startsWith('<li') || line.startsWith('<hr')) return line;
+    if (line.startsWith('<h') || line.startsWith('<ul') || line.startsWith('<li') || line.startsWith('---')) return line;
     if (!line.startsWith('<')) return `<p>${line}</p>`;
     return line;
   }).join('');
@@ -258,9 +244,6 @@ function convertMarkdownToHtml(markdown: string): string {
 // Helper function to convert HTML back to markdown
 function convertHtmlToMarkdown(html: string): string {
   let markdown = html;
-  
-  // Horizontal rule
-  markdown = markdown.replace(/<hr\s*\/?>/g, '---\n');
   
   // Headers
   markdown = markdown.replace(/<h1>(.*?)<\/h1>/g, '# $1\n');
