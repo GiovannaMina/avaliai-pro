@@ -4,7 +4,6 @@ import { ProposalViewer } from '@/components/ProposalViewer';
 import { ProposalGenerator } from '@/components/ProposalGenerator';
 import { ChatPanel } from '@/components/ChatPanel';
 import { Dashboard } from '@/pages/Dashboard';
-import { sampleProposal, proposalMetadata } from '@/data/sampleProposal';
 import { MessageSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -22,7 +21,11 @@ const Index = () => {
   const [proposal, setProposal] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [metadata, setMetadata] = useState(proposalMetadata);
+  const [metadata, setMetadata] = useState({
+    title: 'Proposta Comercial',
+    client: '',
+    date: new Date().toLocaleDateString('pt-BR'),
+  });
 
   const handleUpdateProposal = (newProposal: string) => {
     setProposal(newProposal);
@@ -31,27 +34,38 @@ const Index = () => {
   const handleGenerate = (files: UploadedFile[]) => {
     setIsGenerating(true);
     
-    // Simulate generation delay
+    // Simulate AI generation delay - in the future, this will call the AI
     setTimeout(() => {
-      // If files were uploaded, use their content; otherwise use sample
-      let generatedContent = sampleProposal;
+      // Combine file contents with comments for AI processing
+      const fileContents = files.map(f => {
+        let content = f.content;
+        if (f.comment) {
+          content = `**Observação:** ${f.comment}\n\n${content}`;
+        }
+        return content;
+      });
       
-      if (files.length > 0) {
-        // Combine file contents with comments
-        const fileContents = files.map(f => {
-          let content = f.content;
-          if (f.comment) {
-            content = `**Observação:** ${f.comment}\n\n${content}`;
-          }
-          return content;
-        });
-        generatedContent = fileContents.join('\n\n---\n\n');
-      }
+      // Placeholder: This will be replaced by actual AI-generated content
+      const generatedContent = `# Proposta Comercial
+
+## Resumo
+
+Esta proposta foi gerada a partir de ${files.length} arquivo(s) enviado(s).
+
+---
+
+${fileContents.join('\n\n---\n\n')}
+
+---
+
+*Proposta gerada automaticamente pelo avaliAI*
+*Data: ${new Date().toLocaleDateString('pt-BR')}*
+`;
       
       setProposal(generatedContent);
       setMetadata({
-        ...proposalMetadata,
         title: 'Proposta Comercial',
+        client: '',
         date: new Date().toLocaleDateString('pt-BR'),
       });
       setIsGenerating(false);
