@@ -36,31 +36,9 @@ const Index = () => {
     
     // Simulate AI generation delay - in the future, this will call the AI
     setTimeout(() => {
-      // Combine file contents with comments for AI processing
-      const fileContents = files.map(f => {
-        let content = f.content;
-        if (f.comment) {
-          content = `**Observação:** ${f.comment}\n\n${content}`;
-        }
-        return content;
-      });
-      
-      // Placeholder: This will be replaced by actual AI-generated content
-      const generatedContent = `# Proposta Comercial
-
-## Resumo
-
-Esta proposta foi gerada a partir de ${files.length} arquivo(s) enviado(s).
-
----
-
-${fileContents.join('\n\n---\n\n')}
-
----
-
-*Proposta gerada automaticamente pelo avaliAI*
-*Data: ${new Date().toLocaleDateString('pt-BR')}*
-`;
+      // Placeholder: AI will generate the proposal based on files
+      // For now, just pass empty content - the real AI will populate this
+      const generatedContent = '';
       
       setProposal(generatedContent);
       setMetadata({

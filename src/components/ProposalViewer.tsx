@@ -138,30 +138,12 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
       {/* Document Content */}
       <div className="flex-1 overflow-auto p-4 md:p-8 scrollbar-thin">
         {isEditing ? (
-          /* Side-by-side editing with real-time PDF preview */
-          <div className="h-full flex gap-6">
-            {/* Rich Text Editor */}
-            <div className="flex-1 min-w-0">
-              <RichTextEditor
-                content={editedProposal}
-                onChange={handleEditorChange}
-              />
-            </div>
-            
-            {/* PDF Preview */}
-            <div className="flex-1 min-w-0 hidden lg:block">
-              <div className="h-full bg-card rounded-xl shadow-card border flex flex-col overflow-hidden">
-                <div className="flex items-center gap-2 px-6 py-4 border-b">
-                  <FileDown className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">Preview do PDF</span>
-                </div>
-                <iframe
-                  src={pdfUrl}
-                  className="flex-1 w-full"
-                  title="Preview do PDF em tempo real"
-                />
-              </div>
-            </div>
+          /* Full-width editor - Google Docs style */
+          <div className="h-full max-w-4xl mx-auto">
+            <RichTextEditor
+              content={editedProposal}
+              onChange={handleEditorChange}
+            />
           </div>
         ) : (
           /* PDF View */
