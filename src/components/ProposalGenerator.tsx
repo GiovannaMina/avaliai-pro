@@ -1,14 +1,19 @@
 import { useState, useRef } from 'react';
-import { Upload, FileText, X, Sparkles, ArrowLeft, File } from 'lucide-react';
+import { Upload, FileText, X, Sparkles, ArrowLeft, Trash2, Plus, FileImage, File } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/Header';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { ColorPickerPopover } from '@/components/ColorPickerPopover';
 
 interface UploadedFile {
   id: string;
   name: string;
   content: string;
   comment: string;
+  type?: 'reference' | 'input';
+  fileType?: string;
 }
 
 interface ProposalGeneratorProps {
@@ -17,72 +22,85 @@ interface ProposalGeneratorProps {
   isGenerating?: boolean;
 }
 
-type Step = 'upload' | 'comments' | 'generating';
-
 export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: ProposalGeneratorProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [step, setStep] = useState<Step>('upload');
+  const [pendingFile, setPendingFile] = useState<{ name: string; content: string; fileType: string } | null>(null);
+  const [selectedType, setSelectedType] = useState<'reference' | 'input' | ''>('');
   const [companyName, setCompanyName] = useState('');
+  const [brandColor, setBrandColor] = useState('#f97316');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFiles = e.target.files;
-    if (!uploadedFiles) return;
+    const uploadedFile = e.target.files?.[0];
+    if (!uploadedFile) return;
 
-    Array.from(uploadedFiles).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const content = event.target?.result as string;
-        setFiles((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString() + Math.random(),
-            name: file.name,
-            content,
-            comment: '',
-          },
-        ]);
-      };
-      reader.readAsText(file);
-    });
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      setPendingFile({
+        name: uploadedFile.name,
+        content,
+        fileType: uploadedFile.type || 'unknown',
+      });
+      setSelectedType('');
+    };
+    reader.readAsDataURL(uploadedFile);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
+  const handleConfirmFile = () => {
+    if (!pendingFile || !selectedType) return;
+
+    setFiles((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString() + Math.random(),
+        name: pendingFile.name,
+        content: pendingFile.content,
+        comment: '',
+        type: selectedType,
+        fileType: pendingFile.fileType,
+      },
+    ]);
+    setPendingFile(null);
+    setSelectedType('');
+  };
+
+  const handleCancelPending = () => {
+    setPendingFile(null);
+    setSelectedType('');
+  };
+
   const removeFile = (id: string) => {
     setFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
-  const updateFileComment = (id: string, comment: string) => {
-    setFiles((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, comment } : f))
-    );
-  };
-
-  const handleContinueToComments = () => {
-    if (files.length > 0) {
-      setStep('comments');
+  const handleGenerate = () => {
+    if (files.length > 0 && companyName.trim()) {
+      onGenerate(files);
     }
   };
 
-  const handleGenerate = () => {
-    setStep('generating');
-    onGenerate(files);
+  const getFileIcon = (fileType: string) => {
+    if (fileType.startsWith('image/')) {
+      return <FileImage className="w-4 h-4 text-primary" />;
+    }
+    return <FileText className="w-4 h-4 text-primary" />;
   };
 
-  const handleBackToUpload = () => {
-    setStep('upload');
+  const getTypeLabel = (type: 'reference' | 'input') => {
+    return type === 'reference' ? 'Referência' : 'Entrada';
   };
 
   // Loading screen
-  if (step === 'generating' || isGenerating) {
+  if (isGenerating) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="min-h-screen bg-white flex flex-col">
         <Header />
         <div className="flex-1 flex flex-col items-center justify-center px-4">
-          {/* Animated Logo */}
           <div className="relative mb-8">
             <div className="w-24 h-24 rounded-full border-4 border-primary/20 flex items-center justify-center">
               <div className="w-20 h-20 rounded-full border-4 border-t-primary border-r-primary/50 border-b-primary/20 border-l-primary/50 animate-spin" />
@@ -99,7 +117,6 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
             A IA está analisando seus documentos e criando uma proposta comercial profissional.
           </p>
 
-          {/* Progress dots */}
           <div className="flex gap-2 mt-8">
             <span className="w-3 h-3 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0s' }} />
             <span className="w-3 h-3 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.2s' }} />
@@ -110,113 +127,12 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
     );
   }
 
-  // Comments step
-  if (step === 'comments') {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
-          {/* Logo */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold tracking-tight">
-              avali<span className="text-primary">AI</span>
-            </h1>
-          </div>
-
-          {/* Title */}
-          <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 text-center">
-            Gerador de Propostas
-          </h2>
-          <p className="text-muted-foreground mb-8 text-center">
-            Preencha as informações para gerar sua proposta
-          </p>
-
-          {/* Company Name Input */}
-          <div className="w-full max-w-2xl mb-8">
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Nome da empresa
-            </label>
-            <Input
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="Digite o nome da empresa cliente"
-              className="border-primary/30 focus-visible:border-primary bg-background"
-            />
-          </div>
-
-          {/* Subtitle for files */}
-          <p className="text-muted-foreground mb-4 text-center text-sm">
-            Deseja adicionar algum comentário sobre os documentos?
-          </p>
-
-          {/* Files with comment inputs */}
-          <div className="w-full max-w-2xl space-y-4 mb-10">
-            {files.map((file) => (
-              <div
-                key={file.id}
-                className="flex items-center gap-4 bg-card rounded-xl p-4 border"
-              >
-                {/* File name */}
-                <div className="flex items-center gap-2 min-w-0 flex-shrink-0 max-w-[200px]">
-                  <File className="w-4 h-4 text-primary flex-shrink-0" />
-                  <span className="text-sm text-foreground truncate font-medium">
-                    {file.name}
-                  </span>
-                </div>
-
-                {/* Comment input */}
-                <div className="flex-1">
-                  <Input
-                    value={file.comment}
-                    onChange={(e) => updateFileComment(file.id, e.target.value)}
-                    placeholder="Adicione um comentário (Opcional)"
-                    className="border-primary/30 focus-visible:border-primary bg-background text-sm"
-                  />
-                </div>
-
-                {/* Remove button */}
-                <button
-                  onClick={() => removeFile(file.id)}
-                  className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors flex-shrink-0"
-                >
-                  <X className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={handleBackToUpload}
-              className="gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Voltar
-            </Button>
-
-            <Button
-              onClick={handleGenerate}
-              disabled={!companyName.trim()}
-              className="gradient-brand text-primary-foreground hover:opacity-90 px-10 py-6 text-base font-semibold rounded-full shadow-brand transition-all gap-2 disabled:opacity-50"
-            >
-              <Sparkles className="w-5 h-5" />
-              GERAR
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Upload step (default)
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       <Header />
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
+      <div className="flex-1 flex flex-col items-center px-4 py-8 max-w-4xl mx-auto w-full">
         {/* Logo */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">
             avali<span className="text-primary">AI</span>
           </h1>
@@ -226,91 +142,195 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
         <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 text-center">
           Gerador de Propostas
         </h2>
-        <p className="text-muted-foreground mb-10 text-center">
-          Faça upload dos seus arquivos para gerar uma proposta profissional
+        <p className="text-muted-foreground mb-8 text-center">
+          Anexe seus documentos e configure as informações da proposta
         </p>
 
-        {/* File Upload Area */}
-        <div className="w-full max-w-xl mb-8">
-          <div
-            className="relative rounded-2xl border-2 border-dashed border-primary/40 bg-accent/30 hover:border-primary/60 hover:bg-accent/50 transition-all cursor-pointer p-8"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".txt,.md,.doc,.docx,.pdf,.xlsx,.xls"
-              multiple
-              onChange={handleFileUpload}
-              className="hidden"
+        {/* Company Name and Color Picker */}
+        <div className="w-full max-w-2xl mb-8 flex gap-3 items-end">
+          <div className="flex-1">
+            <Label className="block text-sm font-medium text-foreground mb-2">
+              Nome da empresa cliente
+            </Label>
+            <Input
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="Digite o nome da empresa"
+              className="border-primary/30 focus-visible:border-primary bg-white"
             />
-            <div className="flex flex-col items-center justify-center gap-3">
-              <div className="p-4 rounded-full bg-primary/10">
-                <Upload className="w-8 h-8 text-primary" />
-              </div>
-              <div className="text-center">
-                <p className="font-medium text-foreground">
-                  Clique para selecionar arquivos
+          </div>
+          <div>
+            <Label className="block text-sm font-medium text-foreground mb-2">
+              Cor da marca
+            </Label>
+            <ColorPickerPopover value={brandColor} onChange={setBrandColor} />
+          </div>
+        </div>
+
+        {/* File Upload Area */}
+        {!pendingFile ? (
+          <div className="w-full max-w-2xl mb-6">
+            <div
+              className="relative rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 hover:border-primary/60 hover:bg-primary/10 transition-all cursor-pointer p-8"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="*/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <div className="flex flex-col items-center justify-center gap-3">
+                <div className="p-4 rounded-full bg-primary/10">
+                  <Upload className="w-8 h-8 text-primary" />
+                </div>
+                <div className="text-center">
+                  <p className="font-medium text-foreground">
+                    Clique para selecionar um arquivo
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    ou arraste e solte aqui
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Suporta: PDF, imagens e outros formatos
                 </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  ou arraste e solte aqui
-                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Suporta: TXT, MD, DOC, DOCX, PDF, XLSX
-              </p>
             </div>
           </div>
+        ) : (
+          /* File Type Selection */
+          <div className="w-full max-w-2xl mb-6 bg-primary/5 rounded-2xl border-2 border-primary/30 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <File className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-foreground truncate">{pendingFile.name}</p>
+                <p className="text-xs text-muted-foreground">Selecione o tipo do documento</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCancelPending}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
 
-          {/* Uploaded Files List */}
-          {files.length > 0 && (
-            <div className="mt-6 space-y-2">
-              <p className="text-sm font-medium text-foreground mb-3">
-                Arquivos selecionados ({files.length})
+            <RadioGroup
+              value={selectedType}
+              onValueChange={(value) => setSelectedType(value as 'reference' | 'input')}
+              className="space-y-3"
+            >
+              <div className="flex items-start space-x-3 p-3 rounded-xl bg-white border border-primary/20 hover:border-primary/40 transition-colors">
+                <RadioGroupItem value="reference" id="reference" className="mt-0.5" />
+                <div className="flex-1">
+                  <Label htmlFor="reference" className="font-medium text-foreground cursor-pointer">
+                    Documento de Referência
+                  </Label>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Documento usado como base ou modelo para a proposta (ex: propostas anteriores, templates)
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3 p-3 rounded-xl bg-white border border-primary/20 hover:border-primary/40 transition-colors">
+                <RadioGroupItem value="input" id="input" className="mt-0.5" />
+                <div className="flex-1">
+                  <Label htmlFor="input" className="font-medium text-foreground cursor-pointer">
+                    Documento de Entrada
+                  </Label>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Documento com informações específicas do cliente ou projeto (ex: briefings, requisitos)
+                  </p>
+                </div>
+              </div>
+            </RadioGroup>
+
+            <div className="flex justify-end mt-4">
+              <Button
+                onClick={handleConfirmFile}
+                disabled={!selectedType}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Adicionar Documento
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Uploaded Files List */}
+        {files.length > 0 && (
+          <div className="w-full max-w-2xl mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-foreground">
+                Documentos anexados ({files.length})
               </p>
+              {!pendingFile && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="gap-1 border-primary/30 text-primary hover:bg-primary/10"
+                >
+                  <Plus className="w-4 h-4" />
+                  Adicionar mais
+                </Button>
+              )}
+            </div>
+            <div className="space-y-2">
               {files.map((file) => (
                 <div
                   key={file.id}
-                  className="flex items-center justify-between bg-card rounded-xl px-4 py-3 border"
+                  className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-primary/20 shadow-sm"
                 >
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-4 h-4 text-primary" />
-                    <span className="text-sm text-foreground truncate max-w-[250px]">
-                      {file.name}
-                    </span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {getFileIcon(file.fileType)}
+                    <div className="min-w-0">
+                      <span className="text-sm text-foreground truncate block max-w-[200px] md:max-w-[300px]">
+                        {file.name}
+                      </span>
+                      <span className="text-xs text-primary font-medium">
+                        {getTypeLabel(file.type)}
+                      </span>
+                    </div>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeFile(file.id);
-                    }}
-                    className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors"
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeFile(file.id)}
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   >
-                    <X className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                  </button>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Action buttons */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 mt-auto pt-4">
           <Button
             variant="outline"
             onClick={onBack}
-            className="gap-2"
+            className="gap-2 border-primary/30"
           >
             <ArrowLeft className="w-4 h-4" />
             Voltar ao Menu
           </Button>
 
           <Button
-            onClick={handleContinueToComments}
-            disabled={files.length === 0}
-            className="gradient-brand text-primary-foreground hover:opacity-90 px-10 py-6 text-base font-semibold rounded-full shadow-brand transition-all disabled:opacity-50"
+            onClick={handleGenerate}
+            disabled={files.length === 0 || !companyName.trim() || !!pendingFile}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 px-10 py-6 text-base font-semibold rounded-full shadow-lg transition-all gap-2 disabled:opacity-50"
           >
-            Continuar
+            <Sparkles className="w-5 h-5" />
+            GERAR PROPOSTA
           </Button>
         </div>
       </div>
