@@ -22,6 +22,7 @@ type Step = 'upload' | 'comments' | 'generating';
 export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: ProposalGeneratorProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [step, setStep] = useState<Step>('upload');
+  const [companyName, setCompanyName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,8 +127,26 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
           <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 text-center">
             Gerador de Propostas
           </h2>
-          <p className="text-muted-foreground mb-10 text-center">
-            Você deseja adicionar algum comentário sobre o documento?
+          <p className="text-muted-foreground mb-8 text-center">
+            Preencha as informações para gerar sua proposta
+          </p>
+
+          {/* Company Name Input */}
+          <div className="w-full max-w-2xl mb-8">
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Nome da empresa
+            </label>
+            <Input
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              placeholder="Digite o nome da empresa cliente"
+              className="border-primary/30 focus-visible:border-primary bg-background"
+            />
+          </div>
+
+          {/* Subtitle for files */}
+          <p className="text-muted-foreground mb-4 text-center text-sm">
+            Deseja adicionar algum comentário sobre os documentos?
           </p>
 
           {/* Files with comment inputs */}
@@ -179,7 +198,8 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
 
             <Button
               onClick={handleGenerate}
-              className="gradient-brand text-primary-foreground hover:opacity-90 px-10 py-6 text-base font-semibold rounded-full shadow-brand transition-all gap-2"
+              disabled={!companyName.trim()}
+              className="gradient-brand text-primary-foreground hover:opacity-90 px-10 py-6 text-base font-semibold rounded-full shadow-brand transition-all gap-2 disabled:opacity-50"
             >
               <Sparkles className="w-5 h-5" />
               GERAR
