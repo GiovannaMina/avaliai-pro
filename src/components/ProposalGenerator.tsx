@@ -28,26 +28,53 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
   const [selectedType, setSelectedType] = useState<'reference' | 'input' | ''>('');
   const [companyName, setCompanyName] = useState('');
   const [brandColor, setBrandColor] = useState('#f97316');
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
     if (!uploadedFile) return;
+    processFile(uploadedFile);
 
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const processFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
       setPendingFile({
-        name: uploadedFile.name,
+        name: file.name,
         content,
-        fileType: uploadedFile.type || 'unknown',
+        fileType: file.type || 'unknown',
       });
       setSelectedType('');
     };
-    reader.readAsDataURL(uploadedFile);
+    reader.readAsDataURL(file);
+  };
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) {
+      processFile(droppedFile);
     }
   };
 
@@ -171,8 +198,15 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
         {!pendingFile ? (
           <div className="w-full max-w-2xl mb-6">
             <div
-              className="relative rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 hover:border-primary/60 hover:bg-primary/10 transition-all cursor-pointer p-8"
+              className={`relative rounded-2xl border-2 border-dashed transition-all cursor-pointer p-8 ${
+                isDragging 
+                  ? 'border-primary bg-primary/15' 
+                  : 'border-primary/40 bg-primary/5 hover:border-primary/60 hover:bg-primary/10'
+              }`}
               onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
               <input
                 ref={fileInputRef}
