@@ -105,6 +105,12 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
     setFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
+  const changeFileType = (id: string, newType: 'reference' | 'input') => {
+    setFiles((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, type: newType } : f))
+    );
+  };
+
   const handleGenerate = () => {
     if (files.length > 0 && companyName.trim()) {
       onGenerate(files);
@@ -259,7 +265,14 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
               onValueChange={(value) => setSelectedType(value as 'reference' | 'input')}
               className="space-y-3"
             >
-              <div className="flex items-start space-x-3 p-3 rounded-xl bg-white border border-primary/20 hover:border-primary/40 transition-colors">
+              <div 
+                className={`flex items-start space-x-3 p-3 rounded-xl bg-white border cursor-pointer transition-colors ${
+                  selectedType === 'reference' 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-primary/20 hover:border-primary/40'
+                }`}
+                onClick={() => setSelectedType('reference')}
+              >
                 <RadioGroupItem value="reference" id="reference" className="mt-0.5" />
                 <div className="flex-1">
                   <Label htmlFor="reference" className="font-medium text-foreground cursor-pointer">
@@ -271,7 +284,14 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
                 </div>
               </div>
 
-              <div className="flex items-start space-x-3 p-3 rounded-xl bg-white border border-primary/20 hover:border-primary/40 transition-colors">
+              <div 
+                className={`flex items-start space-x-3 p-3 rounded-xl bg-white border cursor-pointer transition-colors ${
+                  selectedType === 'input' 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-primary/20 hover:border-primary/40'
+                }`}
+                onClick={() => setSelectedType('input')}
+              >
                 <RadioGroupItem value="input" id="input" className="mt-0.5" />
                 <div className="flex-1">
                   <Label htmlFor="input" className="font-medium text-foreground cursor-pointer">
@@ -328,9 +348,28 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
                       <span className="text-sm text-foreground truncate block max-w-[200px] md:max-w-[300px]">
                         {file.name}
                       </span>
-                      <span className="text-xs text-primary font-medium">
-                        {getTypeLabel(file.type)}
-                      </span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <button
+                          onClick={() => changeFileType(file.id, 'reference')}
+                          className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+                            file.type === 'reference'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted text-muted-foreground hover:bg-primary/20'
+                          }`}
+                        >
+                          Referência
+                        </button>
+                        <button
+                          onClick={() => changeFileType(file.id, 'input')}
+                          className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+                            file.type === 'input'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted text-muted-foreground hover:bg-primary/20'
+                          }`}
+                        >
+                          Entrada
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <Button

@@ -1,4 +1,4 @@
-import { Copy, FileText, Share2, FileDown, Link, ChevronDown, Eye } from 'lucide-react';
+import { Copy, FileText, Share2, FileDown, ChevronDown, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
@@ -34,10 +34,13 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
     setEditedProposal(proposal);
   }, [proposal]);
 
-  const handleCopyLink = async () => {
-    const shareUrl = window.location.href;
-    await navigator.clipboard.writeText(shareUrl);
-    toast({ title: 'Link copiado!', description: 'O link foi copiado para a área de transferência.' });
+  const handleCopyContent = async () => {
+    // Remove HTML tags to get plain text
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = editedProposal;
+    const plainText = tempDiv.textContent || tempDiv.innerText || '';
+    await navigator.clipboard.writeText(plainText);
+    toast({ title: 'Proposta copiada!', description: 'O conteúdo foi copiado para a área de transferência.' });
   };
 
   const handleDownload = () => {
@@ -96,9 +99,9 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handleCopyLink} className="gap-2 cursor-pointer">
-                <Link className="w-4 h-4" />
-                Copiar link
+              <DropdownMenuItem onClick={handleCopyContent} className="gap-2 cursor-pointer">
+                <Copy className="w-4 h-4" />
+                Copiar conteúdo
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDownload} className="gap-2 cursor-pointer">
                 <FileDown className="w-4 h-4" />
