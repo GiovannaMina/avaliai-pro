@@ -1,6 +1,6 @@
-import { Copy, Download, FileText, Check, Share2, Pencil, FileDown, Link, ChevronDown } from 'lucide-react';
+import { Copy, FileText, Share2, FileDown, Link, ChevronDown, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { RichTextEditor } from '@/components/RichTextEditor';
 import { downloadProposalPDF, getProposalPDFDataUrl } from '@/utils/pdfGenerator';
@@ -10,6 +10,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface ProposalViewerProps {
   proposal: string;
@@ -20,19 +26,13 @@ interface ProposalViewerProps {
 }
 
 export function ProposalViewer({ proposal, title, date, client, onUpdateProposal }: ProposalViewerProps) {
-  const [isEditing, setIsEditing] = useState(false);
   const [editedProposal, setEditedProposal] = useState(proposal);
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
 
   // Update editedProposal when proposal changes externally
   useEffect(() => {
     setEditedProposal(proposal);
   }, [proposal]);
-
-  // Generate PDF URL for preview - updates in real-time during editing
-  const pdfUrl = useMemo(() => {
-    const content = isEditing ? editedProposal : proposal;
-    return getProposalPDFDataUrl(content, { title, client, date });
-  }, [isEditing ? editedProposal : proposal, title, client, date, isEditing]);
 
   const handleCopyLink = async () => {
     const shareUrl = window.location.href;
@@ -41,25 +41,21 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
   };
 
   const handleDownload = () => {
-    const content = isEditing ? editedProposal : proposal;
-    downloadProposalPDF(content, { title, client, date });
+    downloadProposalPDF(editedProposal, { title, client, date });
     toast({ title: 'PDF baixado!', description: 'A proposta foi baixada em formato PDF.' });
   };
 
-  const handleSaveEdit = () => {
-    onUpdateProposal?.(editedProposal);
-    setIsEditing(false);
-    toast({ title: 'Proposta atualizada!', description: 'Suas alterações foram salvas.' });
-  };
-
-  const handleCancelEdit = () => {
-    setEditedProposal(proposal);
-    setIsEditing(false);
+  const handlePreviewPdf = () => {
+    setShowPdfPreview(true);
   };
 
   const handleEditorChange = (content: string) => {
     setEditedProposal(content);
+    onUpdateProposal?.(content);
   };
+
+  // Generate PDF URL only when preview is requested
+  const pdfUrl = showPdfPreview ? getProposalPDFDataUrl(editedProposal, { title, client, date }) : '';
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -75,105 +71,81 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {isEditing ? (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCancelEdit}
-                className="gap-2"
-              >
-                Cancelar
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSaveEdit}
-                className="gap-2 gradient-brand text-primary-foreground hover:opacity-90"
-              >
-                <Check className="w-4 h-4" />
-                Salvar
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditing(true)}
-                className="gap-2"
-              >
-                <Pencil className="w-4 h-4" />
-                Editar
-              </Button>
+          {/* Preview PDF Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePreviewPdf}
+            className="gap-2"
+          >
+            <Eye className="w-4 h-4" />
+            Visualizar PDF
+          </Button>
 
-              {/* Share Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    Compartilhar
-                    <ChevronDown className="w-3 h-3 ml-1" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={handleCopyLink} className="gap-2 cursor-pointer">
-                    <Link className="w-4 h-4" />
-                    Copiar link
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleDownload} className="gap-2 cursor-pointer">
-                    <FileDown className="w-4 h-4" />
-                    Baixar PDF
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          )}
+          {/* Share Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <Share2 className="w-4 h-4" />
+                Compartilhar
+                <ChevronDown className="w-3 h-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleCopyLink} className="gap-2 cursor-pointer">
+                <Link className="w-4 h-4" />
+                Copiar link
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownload} className="gap-2 cursor-pointer">
+                <FileDown className="w-4 h-4" />
+                Baixar PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {/* Document Content */}
-      <div className="flex-1 overflow-auto p-4 md:p-8 scrollbar-thin">
-        {isEditing ? (
-          /* Side-by-side editing with real-time PDF preview */
-          <div className="h-full flex gap-6">
-            {/* Rich Text Editor */}
-            <div className="flex-1 min-w-0">
-              <RichTextEditor
-                content={editedProposal}
-                onChange={handleEditorChange}
-              />
-            </div>
-            
-            {/* PDF Preview */}
-            <div className="flex-1 min-w-0 hidden lg:block">
-              <div className="h-full bg-card rounded-xl shadow-card border flex flex-col overflow-hidden">
-                <div className="flex items-center gap-2 px-6 py-4 border-b">
-                  <FileDown className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">Preview do PDF</span>
-                </div>
-                <iframe
-                  src={pdfUrl}
-                  className="flex-1 w-full"
-                  title="Preview do PDF em tempo real"
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* PDF View */
-          <div className="h-full w-full max-w-4xl mx-auto">
+      {/* Document Editor - Full Screen WYSIWYG */}
+      <div className="flex-1 overflow-hidden p-4 md:p-8">
+        <div className="h-full max-w-4xl mx-auto">
+          <RichTextEditor
+            content={editedProposal}
+            onChange={handleEditorChange}
+          />
+        </div>
+      </div>
+
+      {/* PDF Preview Modal */}
+      <Dialog open={showPdfPreview} onOpenChange={setShowPdfPreview}>
+        <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileDown className="w-5 h-5 text-primary" />
+              Preview do PDF
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
             <iframe
               src={pdfUrl}
-              className="w-full h-full min-h-[700px] rounded-xl border shadow-card bg-card"
-              title="Visualização da Proposta em PDF"
+              className="w-full h-full rounded-lg border"
+              title="Preview do PDF"
             />
           </div>
-        )}
-      </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setShowPdfPreview(false)}>
+              Fechar
+            </Button>
+            <Button onClick={handleDownload} className="gap-2 gradient-brand text-primary-foreground hover:opacity-90">
+              <FileDown className="w-4 h-4" />
+              Baixar PDF
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
