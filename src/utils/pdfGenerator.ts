@@ -8,35 +8,159 @@ interface PDFOptions {
 }
 
 /**
- * Generate PDF from DOM element using html2canvas for WYSIWYG fidelity
+ * Generate PDF from HTML content using html2canvas for true WYSIWYG fidelity
+ * This ensures all styles (fonts, colors, sizes, alignment) are preserved exactly
  */
-export async function generatePDFFromElement(
-  element: HTMLElement,
+export async function generatePDFFromHTML(
+  htmlContent: string,
   options: PDFOptions
 ): Promise<jsPDF> {
   const { title, client, date } = options;
   
-  // Clone the element to avoid modifying the original
-  const clone = element.cloneNode(true) as HTMLElement;
+  // Create a container that mimics the editor's A4 styling
+  const container = document.createElement('div');
+  container.id = 'pdf-render-container';
+  container.style.cssText = `
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    width: 210mm;
+    padding: 25mm 20mm;
+    background: #ffffff;
+    box-sizing: border-box;
+    font-family: 'Inter', Arial, sans-serif;
+  `;
   
-  // Apply print-specific styles
-  clone.style.width = '210mm';
-  clone.style.padding = '20mm';
-  clone.style.backgroundColor = '#ffffff';
-  clone.style.position = 'absolute';
-  clone.style.left = '-9999px';
-  clone.style.top = '0';
+  // Apply the same wysiwyg-editor styles but force black bullets for PDF
+  container.innerHTML = `
+    <style>
+      #pdf-render-container * {
+        box-sizing: border-box;
+      }
+      #pdf-render-container {
+        font-family: 'Inter', Arial, sans-serif;
+        font-size: 11pt;
+        line-height: 1.6;
+        color: #333;
+      }
+      #pdf-render-container h1 {
+        font-size: 22pt;
+        font-weight: 700;
+        color: #1e1e1e;
+        margin-bottom: 12pt;
+        margin-top: 0;
+        padding-bottom: 8pt;
+        border-bottom: 2px solid hsl(24, 95%, 53%);
+      }
+      #pdf-render-container h2 {
+        font-size: 16pt;
+        font-weight: 600;
+        color: #323232;
+        margin-bottom: 10pt;
+        margin-top: 18pt;
+      }
+      #pdf-render-container h3 {
+        font-size: 13pt;
+        font-weight: 600;
+        color: #464646;
+        margin-bottom: 8pt;
+        margin-top: 14pt;
+      }
+      #pdf-render-container p {
+        margin-bottom: 10pt;
+        color: #505050;
+        font-size: 11pt;
+      }
+      #pdf-render-container ul,
+      #pdf-render-container ol {
+        margin-bottom: 12pt;
+        padding-left: 24pt;
+      }
+      #pdf-render-container ul {
+        list-style-type: disc;
+        list-style-position: outside;
+      }
+      #pdf-render-container ul li {
+        margin-bottom: 4pt;
+        color: #505050;
+        font-size: 11pt;
+        padding-left: 0;
+      }
+      /* Force BLACK bullets for PDF - override theme colors */
+      #pdf-render-container ul li::marker {
+        color: #000000 !important;
+      }
+      #pdf-render-container ol {
+        list-style-type: decimal;
+      }
+      #pdf-render-container ol li {
+        margin-bottom: 4pt;
+        color: #505050;
+        font-size: 11pt;
+      }
+      #pdf-render-container ol li::marker {
+        color: #000000 !important;
+      }
+      #pdf-render-container strong {
+        font-weight: 600;
+        color: #323232;
+      }
+      #pdf-render-container em {
+        font-style: italic;
+      }
+      #pdf-render-container u {
+        text-decoration: underline;
+      }
+    </style>
+    <div class="pdf-content">${htmlContent}</div>
+  `;
   
-  document.body.appendChild(clone);
+  document.body.appendChild(container);
+  
+  // Wait for fonts to load
+  await document.fonts.ready;
+  
+  // Small delay to ensure rendering is complete
+  await new Promise(resolve => setTimeout(resolve, 100));
   
   try {
     // Render to canvas with high quality
-    const canvas = await html2canvas(clone, {
+    const canvas = await html2canvas(container, {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
       windowWidth: 794, // A4 width in pixels at 96 DPI
+      onclone: (clonedDoc) => {
+        // Ensure fonts are applied in the cloned document
+        const clonedContainer = clonedDoc.getElementById('pdf-render-container');
+        if (clonedContainer) {
+          // Force re-apply font styles
+          const elements = clonedContainer.querySelectorAll('*');
+          elements.forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            const computedStyle = window.getComputedStyle(htmlEl);
+            if (computedStyle.fontFamily) {
+              htmlEl.style.fontFamily = computedStyle.fontFamily;
+            }
+            if (computedStyle.fontSize) {
+              htmlEl.style.fontSize = computedStyle.fontSize;
+            }
+            if (computedStyle.fontWeight) {
+              htmlEl.style.fontWeight = computedStyle.fontWeight;
+            }
+            if (computedStyle.fontStyle) {
+              htmlEl.style.fontStyle = computedStyle.fontStyle;
+            }
+            if (computedStyle.textDecoration) {
+              htmlEl.style.textDecoration = computedStyle.textDecoration;
+            }
+            if (computedStyle.textAlign) {
+              htmlEl.style.textAlign = computedStyle.textAlign;
+            }
+          });
+        }
+      }
     });
     
     // Create PDF
@@ -75,15 +199,16 @@ export async function generatePDFFromElement(
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     
     const contentStartY = 75;
-    let currentY = contentStartY;
     let remainingHeight = imgHeight;
     let sourceY = 0;
     
     const availableHeight = pageHeight - contentStartY - 20;
     
     // Handle multi-page content
+    let isFirstPage = true;
     while (remainingHeight > 0) {
-      const sliceHeight = Math.min(remainingHeight, availableHeight);
+      const currentAvailableHeight = isFirstPage ? availableHeight : pageHeight - 40;
+      const sliceHeight = Math.min(remainingHeight, currentAvailableHeight);
       const sourceHeight = (sliceHeight / imgHeight) * canvas.height;
       
       // Create a temporary canvas for this slice
@@ -93,6 +218,8 @@ export async function generatePDFFromElement(
       
       const ctx = tempCanvas.getContext('2d');
       if (ctx) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
         ctx.drawImage(
           canvas,
           0, sourceY,
@@ -102,7 +229,8 @@ export async function generatePDFFromElement(
         );
         
         const sliceData = tempCanvas.toDataURL('image/png');
-        pdf.addImage(sliceData, 'PNG', 20, currentY, imgWidth, sliceHeight);
+        const yPos = isFirstPage ? contentStartY : 20;
+        pdf.addImage(sliceData, 'PNG', 20, yPos, imgWidth, sliceHeight);
       }
       
       remainingHeight -= sliceHeight;
@@ -110,7 +238,7 @@ export async function generatePDFFromElement(
       
       if (remainingHeight > 0) {
         pdf.addPage();
-        currentY = 20;
+        isFirstPage = false;
       }
     }
     
@@ -132,225 +260,39 @@ export async function generatePDFFromElement(
     
     return pdf;
   } finally {
-    document.body.removeChild(clone);
+    document.body.removeChild(container);
   }
 }
 
 /**
- * Legacy function for backward compatibility - now uses HTML content
+ * Download PDF directly from HTML content
  */
-export function generateProposalPDF(proposal: string, options: PDFOptions): jsPDF {
-  const { title, client, date } = options;
-  const doc = new jsPDF();
-  
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
-  const contentWidth = pageWidth - (margin * 2);
-  let yPosition = margin;
-  
-  const checkNewPage = (requiredSpace: number) => {
-    if (yPosition + requiredSpace > pageHeight - margin) {
-      doc.addPage();
-      yPosition = margin;
-      return true;
-    }
-    return false;
-  };
-
-  // Header
-  doc.setFillColor(255, 107, 0);
-  doc.rect(0, 0, pageWidth, 35, 'F');
-  
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
-  doc.setFont('helvetica', 'bold');
-  doc.text('avaliAI', margin, 23);
-  
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Gerador de Propostas Inteligente', margin, 30);
-  
-  yPosition = 50;
-  
-  // Document info
-  doc.setFillColor(245, 245, 245);
-  doc.roundedRect(margin, yPosition, contentWidth, 25, 3, 3, 'F');
-  
-  doc.setTextColor(100, 100, 100);
-  doc.setFontSize(9);
-  doc.text(`Cliente: ${client}`, margin + 5, yPosition + 10);
-  doc.text(`Data: ${date}`, margin + 5, yPosition + 18);
-  doc.text(`Documento: ${title}`, pageWidth / 2, yPosition + 10);
-  
-  yPosition = 85;
-  
-  // Parse HTML content
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = proposal;
-  
-  const processNode = (node: Node) => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent?.trim();
-      if (text) {
-        checkNewPage(8);
-        doc.setTextColor(80, 80, 80);
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'normal');
-        const splitText = doc.splitTextToSize(text, contentWidth);
-        doc.text(splitText, margin, yPosition);
-        yPosition += (splitText.length * 5) + 3;
-      }
-      return;
-    }
-    
-    if (node.nodeType !== Node.ELEMENT_NODE) return;
-    
-    const element = node as HTMLElement;
-    const tagName = element.tagName.toLowerCase();
-    
-    switch (tagName) {
-      case 'h1':
-        checkNewPage(20);
-        doc.setTextColor(30, 30, 30);
-        doc.setFontSize(22);
-        doc.setFont('helvetica', 'bold');
-        const h1Text = element.textContent || '';
-        doc.text(h1Text, margin, yPosition);
-        yPosition += 12;
-        doc.setDrawColor(255, 107, 0);
-        doc.setLineWidth(0.5);
-        doc.line(margin, yPosition - 4, margin + doc.getTextWidth(h1Text), yPosition - 4);
-        yPosition += 8;
-        break;
-        
-      case 'h2':
-        checkNewPage(15);
-        yPosition += 5;
-        doc.setTextColor(50, 50, 50);
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.text(element.textContent || '', margin, yPosition);
-        yPosition += 10;
-        break;
-        
-      case 'h3':
-        checkNewPage(12);
-        yPosition += 3;
-        doc.setTextColor(70, 70, 70);
-        doc.setFontSize(13);
-        doc.setFont('helvetica', 'bold');
-        doc.text(element.textContent || '', margin, yPosition);
-        yPosition += 8;
-        break;
-        
-      case 'p':
-        checkNewPage(8);
-        doc.setTextColor(80, 80, 80);
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'normal');
-        const pText = element.textContent || '';
-        if (pText.trim()) {
-          const splitText = doc.splitTextToSize(pText, contentWidth);
-          doc.text(splitText, margin, yPosition);
-          yPosition += (splitText.length * 5) + 5;
-        } else {
-          yPosition += 5;
-        }
-        break;
-        
-      case 'ul':
-      case 'ol':
-        const listItems = element.querySelectorAll(':scope > li');
-        const isOrdered = tagName === 'ol';
-        listItems.forEach((li, index) => {
-          checkNewPage(8);
-          doc.setTextColor(80, 80, 80);
-          doc.setFontSize(11);
-          doc.setFont('helvetica', 'normal');
-          
-          if (isOrdered) {
-            doc.text(`${index + 1}.`, margin, yPosition);
-          } else {
-            doc.setFillColor(255, 107, 0);
-            doc.circle(margin + 2, yPosition - 1.5, 1.2, 'F');
-          }
-          
-          const liText = li.textContent || '';
-          const splitText = doc.splitTextToSize(liText, contentWidth - 12);
-          doc.text(splitText, margin + 10, yPosition);
-          yPosition += (splitText.length * 5) + 3;
-        });
-        yPosition += 3;
-        break;
-        
-      case 'strong':
-      case 'b':
-        doc.setFont('helvetica', 'bold');
-        const strongText = element.textContent || '';
-        if (strongText.trim()) {
-          checkNewPage(8);
-          doc.setTextColor(50, 50, 50);
-          doc.setFontSize(11);
-          doc.text(strongText, margin, yPosition);
-          yPosition += 7;
-        }
-        doc.setFont('helvetica', 'normal');
-        break;
-        
-      default:
-        element.childNodes.forEach(child => processNode(child));
-    }
-  };
-  
-  tempDiv.childNodes.forEach(node => processNode(node));
-  
-  // Footer
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    
-    doc.setDrawColor(255, 107, 0);
-    doc.setLineWidth(0.3);
-    doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
-    
-    doc.setTextColor(150, 150, 150);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Gerado por avaliAI - Proposta Comercial', margin, pageHeight - 10);
-    doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin - 20, pageHeight - 10);
-  }
-  
-  return doc;
-}
-
-export function downloadProposalPDF(proposal: string, options: PDFOptions): void {
-  const doc = generateProposalPDF(proposal, options);
-  doc.save(`proposta-${options.client.toLowerCase().replace(/\s+/g, '-')}.pdf`);
-}
-
-export function getProposalPDFBlob(proposal: string, options: PDFOptions): Blob {
-  const doc = generateProposalPDF(proposal, options);
-  return doc.output('blob');
-}
-
-export function getProposalPDFDataUrl(proposal: string, options: PDFOptions): string {
-  const doc = generateProposalPDF(proposal, options);
-  return doc.output('dataurlstring');
-}
-
-export async function downloadPDFFromElement(
-  element: HTMLElement,
+export async function downloadProposalPDF(
+  htmlContent: string, 
   options: PDFOptions
 ): Promise<void> {
-  const doc = await generatePDFFromElement(element, options);
-  doc.save(`proposta-${options.client.toLowerCase().replace(/\s+/g, '-')}.pdf`);
+  const pdf = await generatePDFFromHTML(htmlContent, options);
+  pdf.save(`proposta-${options.client.toLowerCase().replace(/\s+/g, '-')}.pdf`);
 }
 
-export async function getPDFDataUrlFromElement(
-  element: HTMLElement,
+/**
+ * Get PDF as data URL for preview
+ */
+export async function getProposalPDFDataUrl(
+  htmlContent: string, 
   options: PDFOptions
 ): Promise<string> {
-  const doc = await generatePDFFromElement(element, options);
-  return doc.output('dataurlstring');
+  const pdf = await generatePDFFromHTML(htmlContent, options);
+  return pdf.output('dataurlstring');
+}
+
+/**
+ * Get PDF as Blob
+ */
+export async function getProposalPDFBlob(
+  htmlContent: string, 
+  options: PDFOptions
+): Promise<Blob> {
+  const pdf = await generatePDFFromHTML(htmlContent, options);
+  return pdf.output('blob');
 }

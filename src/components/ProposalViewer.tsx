@@ -43,22 +43,38 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
     toast({ title: 'Proposta copiada!', description: 'O conteúdo foi copiado para a área de transferência.' });
   };
 
-  const handleDownload = () => {
-    downloadProposalPDF(editedProposal, { title, client, date });
-    toast({ title: 'PDF baixado!', description: 'A proposta foi baixada em formato PDF.' });
+  const [pdfUrl, setPdfUrl] = useState('');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const handleDownload = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      await downloadProposalPDF(editedProposal, { title, client, date });
+      toast({ title: 'PDF baixado!', description: 'A proposta foi baixada em formato PDF.' });
+    } catch (error) {
+      toast({ title: 'Erro ao gerar PDF', description: 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
-  const handlePreviewPdf = () => {
-    setShowPdfPreview(true);
+  const handlePreviewPdf = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      const url = await getProposalPDFDataUrl(editedProposal, { title, client, date });
+      setPdfUrl(url);
+      setShowPdfPreview(true);
+    } catch (error) {
+      toast({ title: 'Erro ao gerar preview', description: 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const handleEditorChange = (content: string) => {
     setEditedProposal(content);
     onUpdateProposal?.(content);
   };
-
-  // Generate PDF URL only when preview is requested
-  const pdfUrl = showPdfPreview ? getProposalPDFDataUrl(editedProposal, { title, client, date }) : '';
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -79,10 +95,11 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
             variant="outline"
             size="sm"
             onClick={handlePreviewPdf}
+            disabled={isGeneratingPdf}
             className="gap-2"
           >
             <Eye className="w-4 h-4" />
-            Visualizar PDF
+            {isGeneratingPdf ? 'Gerando...' : 'Visualizar PDF'}
           </Button>
 
           {/* Share Dropdown */}
@@ -142,9 +159,13 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
             <Button variant="outline" onClick={() => setShowPdfPreview(false)}>
               Fechar
             </Button>
-            <Button onClick={handleDownload} className="gap-2 gradient-brand text-primary-foreground hover:opacity-90">
+            <Button 
+              onClick={handleDownload} 
+              disabled={isGeneratingPdf}
+              className="gap-2 gradient-brand text-primary-foreground hover:opacity-90"
+            >
               <FileDown className="w-4 h-4" />
-              Baixar PDF
+              {isGeneratingPdf ? 'Gerando...' : 'Baixar PDF'}
             </Button>
           </div>
         </DialogContent>

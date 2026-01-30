@@ -237,26 +237,19 @@
   }
 
   .wysiwyg-editor ul {
-    list-style-type: none;
+    list-style-type: disc;
+    list-style-position: outside;
   }
 
   .wysiwyg-editor ul li {
-    position: relative;
-    padding-left: 12pt;
     margin-bottom: 4pt;
     color: #505050;
     font-size: 11pt;
+    padding-left: 0;
   }
 
-  .wysiwyg-editor ul li::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 8pt;
-    width: 5pt;
-    height: 5pt;
-    background-color: hsl(24, 95%, 53%);
-    border-radius: 50%;
+  .wysiwyg-editor ul li::marker {
+    color: #000000;
   }
 
   .wysiwyg-editor ol {
