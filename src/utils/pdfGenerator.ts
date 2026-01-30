@@ -18,14 +18,15 @@ export async function generatePDFFromHTML(
   const { title, client, date } = options;
   
   // Create a container that mimics the editor's A4 styling
+  // NO padding here - margins are handled by jsPDF positioning
   const container = document.createElement('div');
   container.id = 'pdf-render-container';
   container.style.cssText = `
     position: absolute;
     left: -9999px;
     top: 0;
-    width: 210mm;
-    padding: 25mm 20mm;
+    width: 170mm;
+    padding: 0;
     background: #ffffff;
     box-sizing: border-box;
     font-family: 'Inter', Arial, sans-serif;
@@ -130,7 +131,7 @@ export async function generatePDFFromHTML(
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
-      windowWidth: 794, // A4 width in pixels at 96 DPI
+      windowWidth: 643, // 170mm in pixels at 96 DPI
       onclone: (clonedDoc) => {
         // Ensure fonts are applied in the cloned document
         const clonedContainer = clonedDoc.getElementById('pdf-render-container');
@@ -193,21 +194,22 @@ export async function generatePDFFromHTML(
     pdf.text(`Data: ${date}`, 25, infoY + 15);
     pdf.text(`Documento: ${title}`, pageWidth / 2, infoY + 8);
     
-    // Add canvas content
+    // Add canvas content with proper margins
     const imgData = canvas.toDataURL('image/png');
-    const imgWidth = pageWidth - 40;
+    const margin = 20; // 20mm margins
+    const imgWidth = pageWidth - (2 * margin);
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     
-    const contentStartY = 75;
+    const contentStartY = 70; // Closer to info box
     let remainingHeight = imgHeight;
     let sourceY = 0;
     
-    const availableHeight = pageHeight - contentStartY - 20;
+    const availableHeight = pageHeight - contentStartY - 15; // More space at bottom
     
     // Handle multi-page content
     let isFirstPage = true;
     while (remainingHeight > 0) {
-      const currentAvailableHeight = isFirstPage ? availableHeight : pageHeight - 40;
+      const currentAvailableHeight = isFirstPage ? availableHeight : pageHeight - 30;
       const sliceHeight = Math.min(remainingHeight, currentAvailableHeight);
       const sourceHeight = (sliceHeight / imgHeight) * canvas.height;
       
@@ -229,8 +231,8 @@ export async function generatePDFFromHTML(
         );
         
         const sliceData = tempCanvas.toDataURL('image/png');
-        const yPos = isFirstPage ? contentStartY : 20;
-        pdf.addImage(sliceData, 'PNG', 20, yPos, imgWidth, sliceHeight);
+        const yPos = isFirstPage ? contentStartY : 15;
+        pdf.addImage(sliceData, 'PNG', margin, yPos, imgWidth, sliceHeight);
       }
       
       remainingHeight -= sliceHeight;
