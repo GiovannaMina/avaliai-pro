@@ -2,6 +2,8 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
+import { TextStyle } from '@tiptap/extension-text-style';
+import FontFamily from '@tiptap/extension-font-family';
 import { 
   Bold, 
   Italic, 
@@ -16,17 +18,97 @@ import {
   Heading3,
   Undo,
   Redo,
+  Type,
+  ALargeSmall,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useEffect } from 'react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useEffect, useRef } from 'react';
 
 interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
 }
 
+// Custom extension for font size
+import { Extension } from '@tiptap/core';
+
+const FontSize = Extension.create({
+  name: 'fontSize',
+
+  addOptions() {
+    return {
+      types: ['textStyle'],
+    };
+  },
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: element => element.style.fontSize?.replace(/['"]+/g, ''),
+            renderHTML: attributes => {
+              if (!attributes.fontSize) {
+                return {};
+              }
+              return {
+                style: `font-size: ${attributes.fontSize}`,
+              };
+            },
+          },
+        },
+      },
+    ];
+  },
+
+  addCommands() {
+    return {
+      setFontSize: (fontSize: string) => ({ chain }) => {
+        return chain()
+          .setMark('textStyle', { fontSize })
+          .run();
+      },
+      unsetFontSize: () => ({ chain }) => {
+        return chain()
+          .setMark('textStyle', { fontSize: null })
+          .removeEmptyTextStyle()
+          .run();
+      },
+    } as any;
+  },
+});
+
+const FONTS = [
+  { value: 'Inter', label: 'Inter' },
+  { value: 'Arial', label: 'Arial' },
+  { value: 'Times New Roman', label: 'Times New Roman' },
+  { value: 'Courier New', label: 'Courier' },
+  { value: 'Helvetica', label: 'Helvetica' },
+];
+
+const FONT_SIZES = [
+  { value: '12px', label: '12' },
+  { value: '14px', label: '14' },
+  { value: '16px', label: '16' },
+  { value: '18px', label: '18' },
+  { value: '24px', label: '24' },
+  { value: '32px', label: '32' },
+  { value: '48px', label: '48' },
+];
+
 export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
+  const editorRef = useRef<HTMLDivElement>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -38,16 +120,20 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
+      TextStyle,
+      FontFamily.configure({
+        types: ['textStyle'],
+      }),
+      FontSize,
     ],
     content: convertMarkdownToHtml(content),
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
-      const markdown = convertHtmlToMarkdown(html);
-      onChange(markdown);
+      onChange(html);
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-[400px] px-4 py-3',
+        class: 'wysiwyg-editor outline-none',
       },
     },
   });
@@ -55,10 +141,8 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
   useEffect(() => {
     if (editor && content) {
       const currentHtml = editor.getHTML();
-      const newHtml = convertMarkdownToHtml(content);
-      // Only update if content is different to avoid cursor jumping
-      if (convertHtmlToMarkdown(currentHtml) !== content) {
-        editor.commands.setContent(newHtml);
+      if (currentHtml !== content && !content.startsWith('<')) {
+        editor.commands.setContent(convertMarkdownToHtml(content));
       }
     }
   }, [content, editor]);
@@ -91,9 +175,9 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
   );
 
   return (
-    <div className="flex flex-col h-full border rounded-xl bg-card overflow-hidden">
+    <div className="flex flex-col h-full bg-muted/30">
       {/* Toolbar */}
-      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b bg-muted/30 flex-wrap">
+      <div className="flex items-center gap-1 px-3 py-2 border-b bg-card flex-wrap shrink-0">
         {/* History */}
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
@@ -107,6 +191,48 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
         >
           <Redo className="w-4 h-4" />
         </ToolbarButton>
+
+        <Separator orientation="vertical" className="h-6 mx-1" />
+
+        {/* Font Family Selector */}
+        <Select
+          value={editor.getAttributes('textStyle').fontFamily || 'Inter'}
+          onValueChange={(value) => editor.chain().focus().setFontFamily(value).run()}
+        >
+          <SelectTrigger className="w-32 h-8 text-xs">
+            <Type className="w-3 h-3 mr-1" />
+            <SelectValue placeholder="Fonte" />
+          </SelectTrigger>
+          <SelectContent>
+            {FONTS.map((font) => (
+              <SelectItem 
+                key={font.value} 
+                value={font.value}
+                style={{ fontFamily: font.value }}
+              >
+                {font.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Font Size Selector */}
+        <Select
+          value={editor.getAttributes('textStyle').fontSize || '16px'}
+          onValueChange={(value) => (editor.commands as any).setFontSize(value)}
+        >
+          <SelectTrigger className="w-20 h-8 text-xs">
+            <ALargeSmall className="w-3 h-3 mr-1" />
+            <SelectValue placeholder="Tamanho" />
+          </SelectTrigger>
+          <SelectContent>
+            {FONT_SIZES.map((size) => (
+              <SelectItem key={size.value} value={size.value}>
+                {size.label}px
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <Separator orientation="vertical" className="h-6 mx-1" />
 
@@ -202,16 +328,31 @@ export function RichTextEditor({ content, onChange }: RichTextEditorProps) {
         </ToolbarButton>
       </div>
 
-      {/* Editor */}
-      <div className="flex-1 overflow-auto">
-        <EditorContent editor={editor} className="h-full" />
+      {/* A4 Document Container */}
+      <div className="flex-1 overflow-auto py-8 px-4">
+        <div 
+          ref={editorRef}
+          className="a4-container mx-auto bg-white shadow-2xl"
+          id="editor-content"
+        >
+          <EditorContent editor={editor} className="h-full" />
+        </div>
       </div>
     </div>
   );
 }
 
+// Get editor ref for PDF generation
+export function getEditorElement(): HTMLElement | null {
+  return document.getElementById('editor-content');
+}
+
 // Helper function to convert markdown to HTML for the editor
 function convertMarkdownToHtml(markdown: string): string {
+  if (markdown.startsWith('<')) {
+    return markdown;
+  }
+  
   let html = markdown;
   
   // Headers
@@ -239,37 +380,4 @@ function convertMarkdownToHtml(markdown: string): string {
   }).join('');
   
   return html;
-}
-
-// Helper function to convert HTML back to markdown
-function convertHtmlToMarkdown(html: string): string {
-  let markdown = html;
-  
-  // Headers
-  markdown = markdown.replace(/<h1>(.*?)<\/h1>/g, '# $1\n');
-  markdown = markdown.replace(/<h2>(.*?)<\/h2>/g, '## $1\n');
-  markdown = markdown.replace(/<h3>(.*?)<\/h3>/g, '### $1\n');
-  
-  // Bold
-  markdown = markdown.replace(/<strong>(.*?)<\/strong>/g, '**$1**');
-  
-  // Italic
-  markdown = markdown.replace(/<em>(.*?)<\/em>/g, '*$1*');
-  
-  // Underline (keep as is since markdown doesn't support it)
-  markdown = markdown.replace(/<u>(.*?)<\/u>/g, '$1');
-  
-  // Lists
-  markdown = markdown.replace(/<ul>/g, '');
-  markdown = markdown.replace(/<\/ul>/g, '');
-  markdown = markdown.replace(/<li>(.*?)<\/li>/g, '- $1\n');
-  
-  // Paragraphs
-  markdown = markdown.replace(/<p>(.*?)<\/p>/g, '$1\n');
-  
-  // Clean up
-  markdown = markdown.replace(/<br\s*\/?>/g, '\n');
-  markdown = markdown.replace(/\n{3,}/g, '\n\n');
-  
-  return markdown.trim();
 }
