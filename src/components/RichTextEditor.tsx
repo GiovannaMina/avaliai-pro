@@ -89,11 +89,8 @@ const FontSize = Extension.create({
 });
 
 const FONTS = [
-  { value: 'Inter', label: 'Inter' },
+  { value: 'Roboto', label: 'Roboto' },
   { value: 'Arial', label: 'Arial' },
-  { value: 'Times New Roman', label: 'Times New Roman' },
-  { value: 'Courier New', label: 'Courier' },
-  { value: 'Helvetica', label: 'Helvetica' },
 ];
 
 const FONT_SIZES = [
