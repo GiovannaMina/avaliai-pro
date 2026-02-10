@@ -25,27 +25,22 @@ export const CONTEXT_QUESTIONS: ContextQuestion[] = [
     id: 'audience',
     label: 'Quem é o público-alvo ou tomador de decisão?',
     placeholder: 'Ex: Diretor de TI, CEO, equipe de compras...',
-    type: 'input',
+    type: 'textarea',
     required: true,
   },
   {
     id: 'tone',
     label: 'Qual o tom desejado para a proposta?',
-    placeholder: 'Selecione o tom',
-    type: 'select',
+    placeholder: 'Ex: Formal, semi-formal, técnico, persuasivo...',
+    type: 'textarea',
     required: true,
-    options: [
-      { value: 'formal', label: 'Formal' },
-      { value: 'semi-formal', label: 'Semi-formal' },
-      { value: 'informal', label: 'Informal' },
-    ],
   },
   {
     id: 'additional_info',
     label: 'Existe alguma informação adicional ou restrição importante?',
     placeholder: 'Ex: Orçamento máximo de R$50k, prazo de 3 meses, exigências regulatórias...',
     type: 'textarea',
-    required: false,
+    required: true,
   },
 ];
 
