@@ -343,21 +343,12 @@ if (isGenerating) {
 
         {files.length > 0 && (
           <div className="w-full max-w-2xl mb-8">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-medium text-foreground">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</div>
+              <p className="text-base font-bold text-foreground flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" />
                 Documentos anexados ({files.length})
               </p>
-              {!pendingFile && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="gap-1 border-primary/30 text-primary hover:bg-primary/10"
-                >
-                  <Plus className="w-4 h-4" />
-                  Adicionar mais
-                </Button>
-              )}
             </div>
             <div className="space-y-2">
               {files.map((file) => (
