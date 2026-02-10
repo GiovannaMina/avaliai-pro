@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { ColorPickerPopover } from '@/components/ColorPickerPopover';
+import { ContextQuestionnaire, CONTEXT_QUESTIONS } from '@/components/ContextQuestionnaire';
 
 interface UploadedFile {
   id: string;
@@ -18,13 +19,15 @@ interface UploadedFile {
 }
 
 interface ProposalGeneratorProps {
-  onGenerate: (files: UploadedFile[], metadata: { companyName: string; brandColor: string }) => void;
+  onGenerate: (files: UploadedFile[], metadata: { companyName: string; brandColor: string; answers: Record<string, string> }) => void;
   onBack: () => void;
   isGenerating?: boolean;
 }
 
 export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: ProposalGeneratorProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [showValidation, setShowValidation] = useState(false);
   
   const [pendingFile, setPendingFile] = useState<{ 
     name: string; 
@@ -39,6 +42,14 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
   
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAnswerChange = (id: string, value: string) => {
+    setAnswers((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const areRequiredAnswersFilled = CONTEXT_QUESTIONS
+    .filter((q) => q.required)
+    .every((q) => (answers[q.id] || '').trim() !== '');
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
@@ -124,10 +135,15 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
   };
 
   const handleGenerate = () => {
+    if (!areRequiredAnswersFilled) {
+      setShowValidation(true);
+      return;
+    }
     if (files.length > 0 && companyName.trim()) {
       onGenerate(files, {
-        companyName: companyName,
-        brandColor: brandColor
+        companyName,
+        brandColor,
+        answers,
       });
     }
   };
@@ -393,6 +409,14 @@ if (isGenerating) {
           </div>
         )}
 
+        {files.length > 0 && (
+          <ContextQuestionnaire
+            answers={answers}
+            onAnswerChange={handleAnswerChange}
+            showValidation={showValidation}
+          />
+        )}
+
         <div className="flex items-center gap-4 mt-auto pt-4">
           <Button
             variant="outline"
@@ -405,7 +429,7 @@ if (isGenerating) {
 
           <Button
             onClick={handleGenerate}
-            disabled={files.length === 0 || !companyName.trim() || !!pendingFile}
+            disabled={files.length === 0 || !companyName.trim() || !!pendingFile || !areRequiredAnswersFilled}
             className="bg-primary text-primary-foreground hover:bg-primary/90 px-10 py-6 text-base font-semibold rounded-full shadow-lg transition-all gap-2 disabled:opacity-50"
           >
             <Sparkles className="w-5 h-5" />
