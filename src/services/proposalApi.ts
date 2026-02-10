@@ -17,11 +17,12 @@ export interface ListDocumentsResponse {
   message?: string;
 }
 
-export async function generateProposal(metadata?: { files?: any[]; companyName?: string; brandColor?: string }): Promise<GenerateProposalResponse> {
+export async function generateProposal(metadata?: { files?: any[]; companyName?: string; brandColor?: string; answers?: Record<string, string> }): Promise<GenerateProposalResponse> {
   const payload = {
     files: metadata?.files || [],
     companyName: metadata?.companyName || 'Cliente',
     brandColor: metadata?.brandColor || '#000000',
+    answers: metadata?.answers || {},
   };
   
   console.log('📤 Payload being sent:', {

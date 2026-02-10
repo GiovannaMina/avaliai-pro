@@ -15,6 +15,7 @@ interface GeneratePayload {
   files: any[];
   companyName: string;
   brandColor: string;
+  answers: Record<string, string>;
 }
 
 const Index = () => {
@@ -35,7 +36,7 @@ const Index = () => {
 
 const handleGenerate = async (
       files: any[], 
-      metadata: { companyName: string; brandColor: string }
+      metadata: { companyName: string; brandColor: string; answers: Record<string, string> }
   ) => { 
     setIsGenerating(true);
   
@@ -45,7 +46,8 @@ const handleGenerate = async (
       const response = await generateProposal({
           files: files,
           companyName: metadata.companyName,
-          brandColor: metadata.brandColor
+          brandColor: metadata.brandColor,
+          answers: metadata.answers,
       });
       
       setProposal(response.proposal);
