@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, FileText, X, Sparkles, ArrowLeft, Trash2, Plus, FileImage, File } from 'lucide-react';
+import { Upload, FileText, X, Sparkles, ArrowLeft, Trash2, Plus, FileImage, File, FileIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/Header';
@@ -14,20 +14,29 @@ interface UploadedFile {
   comment: string;
   type?: 'reference' | 'input';
   fileType?: string;
+  originalFile: File;
 }
 
 interface ProposalGeneratorProps {
-  onGenerate: (files: UploadedFile[]) => void;
+  onGenerate: (files: UploadedFile[], metadata: { companyName: string; brandColor: string }) => void;
   onBack: () => void;
   isGenerating?: boolean;
 }
 
 export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: ProposalGeneratorProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [pendingFile, setPendingFile] = useState<{ name: string; content: string; fileType: string } | null>(null);
+  
+  const [pendingFile, setPendingFile] = useState<{ 
+    name: string; 
+    content: string; 
+    fileType: string; 
+    originalFile: File; 
+  } | null>(null);
+
   const [selectedType, setSelectedType] = useState<'reference' | 'input' | ''>('');
   const [companyName, setCompanyName] = useState('');
   const [brandColor, setBrandColor] = useState('#f97316');
+  
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -45,10 +54,12 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
+      
       setPendingFile({
         name: file.name,
         content,
         fileType: file.type || 'unknown',
+        originalFile: file,
       });
       setSelectedType('');
     };
@@ -90,6 +101,7 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
         comment: '',
         type: selectedType,
         fileType: pendingFile.fileType,
+        originalFile: pendingFile.originalFile, 
       },
     ]);
     setPendingFile(null);
@@ -113,7 +125,10 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
 
   const handleGenerate = () => {
     if (files.length > 0 && companyName.trim()) {
-      onGenerate(files);
+      onGenerate(files, {
+        companyName: companyName,
+        brandColor: brandColor
+      });
     }
   };
 
@@ -124,12 +139,7 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
     return <FileText className="w-4 h-4 text-primary" />;
   };
 
-  const getTypeLabel = (type: 'reference' | 'input') => {
-    return type === 'reference' ? 'Referência' : 'Entrada';
-  };
-
-  // Loading screen
-  if (isGenerating) {
+if (isGenerating) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
         <Header />
@@ -164,14 +174,15 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
     <div className="min-h-screen bg-white flex flex-col">
       <Header />
       <div className="flex-1 flex flex-col items-center px-4 py-8 max-w-4xl mx-auto w-full">
-        {/* Logo */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">
-            avali<span className="text-primary">AI</span>
+          <h1 className="text-2xl font-['Biennale-Medium'] tracking-tight">
+            <span className="text-slate-900">avali</span>
+            <span className="bg-gradient-to-r from-[#FF3B30] via-[#FF7A45] to-[#FF9500] bg-clip-text text-transparent">
+              AI
+            </span>
           </h1>
         </div>
 
-        {/* Title */}
         <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 text-center">
           Gerador de Propostas
         </h2>
@@ -179,7 +190,6 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
           Anexe seus documentos e configure as informações da proposta
         </p>
 
-        {/* Company Name and Color Picker */}
         <div className="w-full max-w-2xl mb-8 flex gap-3 items-end">
           <div className="flex-1">
             <Label className="block text-sm font-medium text-foreground mb-2">
@@ -200,7 +210,6 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
           </div>
         </div>
 
-        {/* File Upload Area */}
         {!pendingFile ? (
           <div className="w-full max-w-2xl mb-6">
             <div
@@ -223,11 +232,11 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
               />
               <div className="flex flex-col items-center justify-center gap-3">
                 <div className="p-4 rounded-full bg-primary/10">
-                  <Upload className="w-8 h-8 text-primary" />
+                  <Upload className={`w-8 h-8 text-primary ${isDragging ? 'animate-bounce' : ''}`} />
                 </div>
                 <div className="text-center">
                   <p className="font-medium text-foreground">
-                    Clique para selecionar um arquivo
+                    {isDragging ? 'Solte o arquivo agora' : 'Clique para selecionar um arquivo'}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
                     ou arraste e solte aqui
@@ -240,11 +249,10 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
             </div>
           </div>
         ) : (
-          /* File Type Selection */
           <div className="w-full max-w-2xl mb-6 bg-primary/5 rounded-2xl border-2 border-primary/30 p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 rounded-lg bg-primary/10">
-                <File className="w-5 h-5 text-primary" />
+                <FileIcon className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-foreground truncate">{pendingFile.name}</p>
@@ -317,7 +325,6 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
           </div>
         )}
 
-        {/* Uploaded Files List */}
         {files.length > 0 && (
           <div className="w-full max-w-2xl mb-8">
             <div className="flex items-center justify-between mb-3">
@@ -343,7 +350,7 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
                   className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-primary/20 shadow-sm"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    {getFileIcon(file.fileType)}
+                    {getFileIcon(file.fileType || '')}
                     <div className="min-w-0">
                       <span className="text-sm text-foreground truncate block max-w-[200px] md:max-w-[300px]">
                         {file.name}
@@ -386,7 +393,6 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
           </div>
         )}
 
-        {/* Action buttons */}
         <div className="flex items-center gap-4 mt-auto pt-4">
           <Button
             variant="outline"
