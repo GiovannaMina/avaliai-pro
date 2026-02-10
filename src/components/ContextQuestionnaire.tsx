@@ -1,7 +1,5 @@
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ClipboardList } from 'lucide-react';
 
 export interface ContextQuestion {
@@ -53,76 +51,39 @@ interface ContextQuestionnaireProps {
 export function ContextQuestionnaire({ answers, onAnswerChange, showValidation }: ContextQuestionnaireProps) {
   return (
     <div className="w-full max-w-2xl mb-8">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="p-2 rounded-lg bg-primary/10">
-          <ClipboardList className="w-5 h-5 text-primary" />
-        </div>
-        <h3 className="text-lg font-semibold text-foreground">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-medium text-foreground flex items-center gap-2">
+          <ClipboardList className="w-4 h-4 text-primary" />
           Informações para a proposta
-        </h3>
+        </p>
       </div>
 
-      <div className="space-y-5 bg-primary/5 rounded-2xl border border-primary/20 p-6">
+      <div className="space-y-2">
         {CONTEXT_QUESTIONS.map((q) => {
           const value = answers[q.id] || '';
           const hasError = showValidation && q.required && !value.trim();
 
           return (
-            <div key={q.id} className="space-y-2">
-              <Label className="text-sm font-medium text-foreground">
+            <div
+              key={q.id}
+              className={`bg-white rounded-xl px-4 py-3 border shadow-sm transition-colors ${
+                hasError ? 'border-destructive' : 'border-primary/20'
+              }`}
+            >
+              <Label className="text-sm font-medium text-foreground mb-2 block">
                 {q.label}
                 {q.required && <span className="text-destructive ml-1">*</span>}
               </Label>
 
-              {q.type === 'textarea' && (
-                <Textarea
-                  value={value}
-                  onChange={(e) => onAnswerChange(q.id, e.target.value)}
-                  placeholder={q.placeholder}
-                  className={`bg-white border transition-colors resize-none min-h-[80px] ${
-                    hasError
-                      ? 'border-destructive focus-visible:border-destructive'
-                      : 'border-primary/20 focus-visible:border-primary'
-                  }`}
-                />
-              )}
-
-              {q.type === 'input' && (
-                <Input
-                  value={value}
-                  onChange={(e) => onAnswerChange(q.id, e.target.value)}
-                  placeholder={q.placeholder}
-                  className={`bg-white border transition-colors ${
-                    hasError
-                      ? 'border-destructive focus-visible:border-destructive'
-                      : 'border-primary/20 focus-visible:border-primary'
-                  }`}
-                />
-              )}
-
-              {q.type === 'select' && (
-                <Select value={value} onValueChange={(v) => onAnswerChange(q.id, v)}>
-                  <SelectTrigger
-                    className={`bg-white border transition-colors ${
-                      hasError
-                        ? 'border-destructive focus-visible:border-destructive'
-                        : 'border-primary/20 focus-visible:border-primary'
-                    }`}
-                  >
-                    <SelectValue placeholder={q.placeholder} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {q.options?.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              <Textarea
+                value={value}
+                onChange={(e) => onAnswerChange(q.id, e.target.value)}
+                placeholder={q.placeholder}
+                className="bg-transparent border-0 p-0 shadow-none focus-visible:ring-0 resize-none min-h-[60px] text-sm text-foreground placeholder:text-muted-foreground"
+              />
 
               {hasError && (
-                <p className="text-xs text-destructive">Este campo é obrigatório</p>
+                <p className="text-xs text-destructive mt-1">Este campo é obrigatório</p>
               )}
             </div>
           );
