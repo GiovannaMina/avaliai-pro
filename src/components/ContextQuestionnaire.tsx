@@ -79,7 +79,7 @@ export function ContextQuestionnaire({ answers, onAnswerChange, showValidation }
                 value={value}
                 onChange={(e) => onAnswerChange(q.id, e.target.value)}
                 placeholder={q.placeholder}
-                className="bg-transparent border-0 p-0 shadow-none focus-visible:ring-0 resize-none min-h-[60px] text-sm text-foreground placeholder:text-muted-foreground"
+                className="bg-primary/5 border-0 rounded-lg px-3 py-2 shadow-none focus-visible:ring-1 focus-visible:ring-primary/30 resize-none min-h-[60px] text-sm text-foreground placeholder:text-muted-foreground"
               />
 
               {hasError && (
