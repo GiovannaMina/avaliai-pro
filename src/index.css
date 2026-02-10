@@ -1,12 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @layer base {
   :root {
-    /* avaliAI Brand Colors - Orange/Black/White */
     --background: 0 0% 100%;
     --foreground: 0 0% 8%;
 
@@ -16,18 +16,15 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 8%;
 
-    /* Primary Orange */
     --primary: 24 95% 53%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Dark */
     --secondary: 0 0% 8%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 30 10% 96%;
     --muted-foreground: 0 0% 45%;
 
-    /* Accent Orange Light */
     --accent: 30 100% 97%;
     --accent-foreground: 24 95% 45%;
 
@@ -40,7 +37,6 @@
 
     --radius: 0.75rem;
 
-    /* Custom avaliAI tokens */
     --gradient-brand: linear-gradient(135deg, hsl(24, 95%, 53%) 0%, hsl(30, 100%, 60%) 100%);
     --gradient-dark: linear-gradient(180deg, hsl(0, 0%, 8%) 0%, hsl(0, 0%, 15%) 100%);
     --shadow-brand: 0 8px 32px -8px hsla(24, 95%, 53%, 0.35);
@@ -56,7 +52,6 @@
     --sidebar-border: 30 15% 92%;
     --sidebar-ring: 24 95% 53%;
 
-    /* Chat specific */
     --chat-user: 30 100% 97%;
     --chat-ai: 0 0% 100%;
   }
@@ -179,7 +174,6 @@
     @apply font-semibold text-foreground;
   }
 
-  /* A4 Document Container */
   .a4-container {
     width: 210mm;
     min-height: 297mm;
@@ -188,30 +182,29 @@
     box-sizing: border-box;
   }
 
-  /* WYSIWYG Editor Styles - Matching PDF output exactly */
   .wysiwyg-editor {
     outline: none;
     min-height: 100%;
-    font-family: 'Inter', Arial, sans-serif;
-    font-size: 11pt;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12pt;
     line-height: 1.6;
-    color: #333;
+    color: #000;
   }
 
   .wysiwyg-editor h1 {
-    font-size: 22pt;
+    font-size: 18pt;
     font-weight: 700;
-    color: #1e1e1e;
+    color: #000;
     margin-bottom: 12pt;
     margin-top: 0;
     padding-bottom: 8pt;
-    border-bottom: 2px solid hsl(24, 95%, 53%);
+    border-bottom: none; 
   }
 
   .wysiwyg-editor h2 {
     font-size: 16pt;
     font-weight: 600;
-    color: #323232;
+    color: #000;
     margin-bottom: 10pt;
     margin-top: 18pt;
   }
@@ -219,15 +212,20 @@
   .wysiwyg-editor h3 {
     font-size: 13pt;
     font-weight: 600;
-    color: #464646;
+    color: #000;
     margin-bottom: 8pt;
     margin-top: 14pt;
   }
 
   .wysiwyg-editor p {
-    margin-bottom: 10pt;
+    margin-bottom: 0.6em;
     color: #505050;
-    font-size: 11pt;
+    font-size: 12pt;
+  }
+
+  .wysiwyg-editor li p {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
   }
 
   .wysiwyg-editor ul,
@@ -237,29 +235,39 @@
   }
 
   .wysiwyg-editor ul {
-    list-style-type: disc;
-    list-style-position: outside;
+    list-style-type: none;
+    padding-left: 24pt;
   }
 
   .wysiwyg-editor ul li {
+    position: relative;
     margin-bottom: 4pt;
-    color: #505050;
-    font-size: 11pt;
-    padding-left: 0;
   }
 
   .wysiwyg-editor ul li::marker {
     color: #000000;
   }
 
+  .wysiwyg-editor ul li::before {
+    content: '';
+    position: absolute;
+    left: -14pt;
+    top: 0.55em;
+    width: 4pt;
+    height: 4pt;
+    background-color: #000000;
+    border-radius: 50%;
+  }
+
   .wysiwyg-editor ol {
     list-style-type: decimal;
+    padding-left: 24pt;
+    margin-bottom: 12pt;
   }
 
   .wysiwyg-editor ol li {
+    padding-left: 4pt;
     margin-bottom: 4pt;
-    color: #505050;
-    font-size: 11pt;
   }
 
   .wysiwyg-editor strong {
@@ -283,7 +291,6 @@
     height: 0;
   }
 
-  /* Text alignment */
   .wysiwyg-editor [style*="text-align: center"] {
     text-align: center;
   }

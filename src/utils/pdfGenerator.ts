@@ -1,300 +1,360 @@
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface PDFOptions {
   title: string;
   client: string;
   date: string;
+  themeColor?: string;
 }
 
-/**
- * Generate PDF from HTML content using html2canvas for true WYSIWYG fidelity
- * This ensures all styles (fonts, colors, sizes, alignment) are preserved exactly
- */
-export async function generatePDFFromHTML(
-  htmlContent: string,
-  options: PDFOptions
-): Promise<jsPDF> {
+function cleanHTML(content: string): string {
+  if (!content) return '';
+  let cleaned = content
+    .replace(/[%Ï•]/g, '')
+    .replace(/<br\s*\/?>/g, '<br>')
+    .replace(/&nbsp;/g, ' ');
+
+  cleaned = cleaned.replace(/<li>\s*<p[^>]*>/g, '<li>').replace(/<\/p>\s*<\/li>/g, '</li>');
+  
+  if (!cleaned.includes('<')) return `<p>${cleaned}</p>`;
+  return cleaned;
+}
+
+function parseSize(val: string | null): number {
+  if (!val) return 12;
+  const num = parseFloat(val);
+  if (isNaN(num)) return 12;
+  if (val.includes('pt')) return num;
+  if (val.includes('px')) return num * 0.75; 
+  return num;
+}
+
+export async function generateProposalPDF(proposal: string, options: PDFOptions): Promise<jsPDF> {
   const { title, client, date } = options;
+  const themeColor = options.themeColor || '#f97316'; 
   
-  // Create a container that mimics the editor's A4 styling
-  // NO padding here - margins are handled by jsPDF positioning
-  const container = document.createElement('div');
-  container.id = 'pdf-render-container';
-  container.style.cssText = `
-    position: absolute;
-    left: -9999px;
-    top: 0;
-    width: 170mm;
-    padding: 0;
-    background: #ffffff;
-    box-sizing: border-box;
-    font-family: 'Inter', Arial, sans-serif;
-  `;
+  const doc = new jsPDF();
+  const mainFont = 'helvetica';
   
-  // Apply the same wysiwyg-editor styles but force black bullets for PDF
-  container.innerHTML = `
-    <style>
-      #pdf-render-container * {
-        box-sizing: border-box;
-      }
-      #pdf-render-container {
-        font-family: 'Inter', Arial, sans-serif;
-        font-size: 11pt;
-        line-height: 1.6;
-        color: #333;
-      }
-      #pdf-render-container h1 {
-        font-size: 22pt;
-        font-weight: 700;
-        color: #1e1e1e;
-        margin-bottom: 12pt;
-        margin-top: 0;
-        padding-bottom: 8pt;
-        border-bottom: 2px solid hsl(24, 95%, 53%);
-      }
-      #pdf-render-container h2 {
-        font-size: 16pt;
-        font-weight: 600;
-        color: #323232;
-        margin-bottom: 10pt;
-        margin-top: 18pt;
-      }
-      #pdf-render-container h3 {
-        font-size: 13pt;
-        font-weight: 600;
-        color: #464646;
-        margin-bottom: 8pt;
-        margin-top: 14pt;
-      }
-      #pdf-render-container p {
-        margin-bottom: 10pt;
-        color: #505050;
-        font-size: 11pt;
-      }
-      #pdf-render-container ul,
-      #pdf-render-container ol {
-        margin-bottom: 12pt;
-        padding-left: 24pt;
-      }
-      #pdf-render-container ul {
-        list-style-type: disc;
-        list-style-position: outside;
-      }
-      #pdf-render-container ul li {
-        margin-bottom: 4pt;
-        color: #505050;
-        font-size: 11pt;
-        padding-left: 0;
-      }
-      /* Force BLACK bullets for PDF - override theme colors */
-      #pdf-render-container ul li::marker {
-        color: #000000 !important;
-      }
-      #pdf-render-container ol {
-        list-style-type: decimal;
-      }
-      #pdf-render-container ol li {
-        margin-bottom: 4pt;
-        color: #505050;
-        font-size: 11pt;
-      }
-      #pdf-render-container ol li::marker {
-        color: #000000 !important;
-      }
-      #pdf-render-container strong {
-        font-weight: 600;
-        color: #323232;
-      }
-      #pdf-render-container em {
-        font-style: italic;
-      }
-      #pdf-render-container u {
-        text-decoration: underline;
-      }
-    </style>
-    <div class="pdf-content">${htmlContent}</div>
-  `;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 20;
+  const contentWidth = pageWidth - (margin * 2);
+  let yPosition = margin;
   
-  document.body.appendChild(container);
+  let cursorX = margin;
   
-  // Wait for fonts to load
-  await document.fonts.ready;
+  const checkNewPage = (requiredSpace: number) => {
+    if (yPosition + requiredSpace > pageHeight - margin) {
+      doc.addPage();
+      yPosition = margin;
+      cursorX = margin;
+      return true;
+    }
+    return false;
+  };
+
+  doc.setFillColor(themeColor); 
+  doc.rect(0, 0, pageWidth, 35, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(24);
+  doc.setFont(mainFont, 'bold');
+  doc.text('avaliAI', margin, 23);
+  doc.setFontSize(10);
+  doc.setFont(mainFont, 'normal');
+  doc.text('Gerador de Propostas Inteligente', margin, 30);
+  yPosition = 50;
   
-  // Small delay to ensure rendering is complete
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  try {
-    // Render to canvas with high quality
-    const canvas = await html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff',
-      windowWidth: 643, // 170mm in pixels at 96 DPI
-      onclone: (clonedDoc) => {
-        // Ensure fonts are applied in the cloned document
-        const clonedContainer = clonedDoc.getElementById('pdf-render-container');
-        if (clonedContainer) {
-          // Force re-apply font styles
-          const elements = clonedContainer.querySelectorAll('*');
-          elements.forEach((el) => {
-            const htmlEl = el as HTMLElement;
-            const computedStyle = window.getComputedStyle(htmlEl);
-            if (computedStyle.fontFamily) {
-              htmlEl.style.fontFamily = computedStyle.fontFamily;
-            }
-            if (computedStyle.fontSize) {
-              htmlEl.style.fontSize = computedStyle.fontSize;
-            }
-            if (computedStyle.fontWeight) {
-              htmlEl.style.fontWeight = computedStyle.fontWeight;
-            }
-            if (computedStyle.fontStyle) {
-              htmlEl.style.fontStyle = computedStyle.fontStyle;
-            }
-            if (computedStyle.textDecoration) {
-              htmlEl.style.textDecoration = computedStyle.textDecoration;
-            }
-            if (computedStyle.textAlign) {
-              htmlEl.style.textAlign = computedStyle.textAlign;
-            }
-          });
+  doc.setFillColor(245, 245, 245);
+  doc.roundedRect(margin, yPosition, contentWidth, 25, 3, 3, 'F');
+  doc.setTextColor(100, 100, 100);
+  doc.setFont(mainFont, 'normal');
+  doc.setFontSize(9);
+  doc.text(`Cliente: ${client}`, margin + 5, yPosition + 10);
+  doc.text(`Data: ${date}`, margin + 5, yPosition + 18);
+  doc.text(`Documento: ${title}`, pageWidth / 2, yPosition + 10);
+  yPosition = 85;
+
+  const parser = new DOMParser();
+  const htmlDoc = parser.parseFromString(cleanHTML(proposal), 'text/html');
+  const body = htmlDoc.body;
+
+  let lineBuffer: { 
+    text: string; 
+    width: number; 
+    isSpace: boolean; 
+    font: string; 
+    style: string; 
+    size: number; 
+    color: number; 
+    isUnderline: boolean;
+  }[] = [];
+
+  let currentLineWidth = 0;
+
+  const flushLine = (align: string, isLastLine: boolean, indent: number) => {
+    while (lineBuffer.length > 0 && lineBuffer[lineBuffer.length - 1].isSpace) {
+      lineBuffer.pop();
+    }
+
+    if (lineBuffer.length === 0) {
+      currentLineWidth = 0;
+      return;
+    }
+
+    const maxLineHeight = Math.max(...lineBuffer.map(t => t.size * 0.45));
+    
+    const realLineWidth = lineBuffer.reduce((sum, t) => sum + t.width, 0);
+    const availableSpace = contentWidth - (indent - margin) - realLineWidth;
+    const spaceTokens = lineBuffer.filter(t => t.isSpace).length;
+    
+    let startX = indent;
+    let extraSpace = 0;
+
+    if (align === 'justify' && !isLastLine && spaceTokens > 0) {
+      extraSpace = availableSpace / spaceTokens;
+    } else if (align === 'center') {
+      startX += availableSpace / 2;
+    } else if (align === 'right') {
+      startX += availableSpace;
+    }
+
+    let currentX = startX;
+
+    lineBuffer.forEach(token => {
+      doc.setFont(token.font, token.style);
+      doc.setFontSize(token.size);
+      doc.setTextColor(token.color, token.color, token.color);
+
+      if (token.isSpace) {
+        currentX += token.width + extraSpace;
+      } else {
+        doc.text(token.text, currentX, yPosition);
+        
+        if (token.isUnderline) {
+          doc.setDrawColor(0,0,0);
+          doc.setLineWidth(0.5);
+          doc.line(currentX, yPosition + 1, currentX + token.width, yPosition + 1);
         }
+        
+        currentX += token.width;
       }
     });
+
+    yPosition += maxLineHeight;
+    checkNewPage(10);
     
-    // Create PDF
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
+    lineBuffer = [];
+    currentLineWidth = 0;
+  };
+
+  const processNode = (node: Node, context: { 
+    font: string, 
+    isBold: boolean,    
+    isItalic: boolean,  
+    isUnderline: boolean,
+    size: number, 
+    align: string, 
+    indent: number, 
+    listType: 'ul' | 'ol' | 'none', 
+    listCounter: number 
+  }) => {
     
-    // Header
-    const headerHeight = 35;
-    pdf.setFillColor(255, 107, 0);
-    pdf.rect(0, 0, pageWidth, headerHeight, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(24);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('avaliAI', 20, 23);
-    
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text('Gerador de Propostas Inteligente', 20, 30);
-    
-    // Document info
-    const infoY = 45;
-    pdf.setFillColor(245, 245, 245);
-    pdf.roundedRect(20, infoY, pageWidth - 40, 20, 3, 3, 'F');
-    
-    pdf.setTextColor(100, 100, 100);
-    pdf.setFontSize(9);
-    pdf.text(`Cliente: ${client}`, 25, infoY + 8);
-    pdf.text(`Data: ${date}`, 25, infoY + 15);
-    pdf.text(`Documento: ${title}`, pageWidth / 2, infoY + 8);
-    
-    // Add canvas content with proper margins
-    const imgData = canvas.toDataURL('image/png');
-    const margin = 20; // 20mm margins
-    const imgWidth = pageWidth - (2 * margin);
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    const contentStartY = 70; // Closer to info box
-    let remainingHeight = imgHeight;
-    let sourceY = 0;
-    
-    const availableHeight = pageHeight - contentStartY - 15; // More space at bottom
-    
-    // Handle multi-page content
-    let isFirstPage = true;
-    while (remainingHeight > 0) {
-      const currentAvailableHeight = isFirstPage ? availableHeight : pageHeight - 30;
-      const sliceHeight = Math.min(remainingHeight, currentAvailableHeight);
-      const sourceHeight = (sliceHeight / imgHeight) * canvas.height;
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement;
+      const tagName = el.tagName.toLowerCase();
       
-      // Create a temporary canvas for this slice
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = sourceHeight;
-      
-      const ctx = tempCanvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-        ctx.drawImage(
-          canvas,
-          0, sourceY,
-          canvas.width, sourceHeight,
-          0, 0,
-          canvas.width, sourceHeight
-        );
+      let current = { ...context };
+
+      if (el.style.fontSize) current.size = parseSize(el.style.fontSize);
+      if (el.style.textAlign) current.align = el.style.textAlign;
+
+      if (tagName === 'strong' || tagName === 'b' || Number(el.style.fontWeight) >= 700) current.isBold = true;
+      if (tagName === 'em' || tagName === 'i' || el.style.fontStyle === 'italic') current.isItalic = true;
+      if (tagName === 'u' || el.style.textDecoration?.includes('underline')) current.isUnderline = true;
+
+      const isBlock = ['p', 'div', 'h1', 'h2', 'h3', 'li', 'ul', 'ol'].includes(tagName);
+
+      if (['h1', 'h2', 'h3'].includes(tagName)) {
+        current.isBold = true;
+        current.isItalic = false;
+        if (tagName === 'h1') current.size = 22;
+        if (tagName === 'h2') current.size = 16;
+        if (tagName === 'h3') current.size = 13;
+        flushLine(current.align, true, current.indent); 
+        checkNewPage(20);
+        yPosition += 5;
+      }
+
+      if (isBlock && lineBuffer.length > 0) {
+        flushLine(current.align, true, current.indent);
+      }
+
+      if (tagName === 'ol') { current.listType = 'ol'; current.listCounter = 1; }
+      if (tagName === 'ul') { current.listType = 'ul'; }
+
+      if (tagName === 'li') {
+        current.indent = margin + 12;
         
-        const sliceData = tempCanvas.toDataURL('image/png');
-        const yPos = isFirstPage ? contentStartY : 15;
-        pdf.addImage(sliceData, 'PNG', margin, yPos, imgWidth, sliceHeight);
+        let styleStr = 'normal';
+        if (current.isBold && current.isItalic) styleStr = 'bolditalic';
+        else if (current.isBold) styleStr = 'bold';
+        else if (current.isItalic) styleStr = 'italic';
+
+        doc.setFont(mainFont, styleStr);
+        doc.setFontSize(current.size);
+        doc.setTextColor(0, 0, 0); 
+        
+        if (current.listType === 'ol') {
+          doc.text(`${current.listCounter}.`, margin + 4, yPosition);
+          current.listCounter++; 
+        } else {
+          const bulletY = yPosition - (current.size * 0.115); 
+          doc.setFillColor(0, 0, 0);
+          doc.circle(margin + 4, bulletY, 1.2, 'F');
+        }
       }
-      
-      remainingHeight -= sliceHeight;
-      sourceY += sourceHeight;
-      
-      if (remainingHeight > 0) {
-        pdf.addPage();
-        isFirstPage = false;
+
+      let childCounter = 1;
+      el.childNodes.forEach(child => {
+        if (child.nodeName.toLowerCase() === 'li') {
+            const childContext = { ...current, listCounter: childCounter };
+            processNode(child, childContext);
+            childCounter++;
+        } else {
+            processNode(child, current);
+        }
+      });
+
+      if (isBlock) {
+        flushLine(current.align, true, current.indent);
+        yPosition += (current.size * 0.4); 
+        checkNewPage(10);
       }
+      return;
     }
-    
-    // Footer on all pages
-    const pageCount = pdf.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      pdf.setPage(i);
-      
-      pdf.setDrawColor(255, 107, 0);
-      pdf.setLineWidth(0.3);
-      pdf.line(20, pageHeight - 15, pageWidth - 20, pageHeight - 15);
-      
-      pdf.setTextColor(150, 150, 150);
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('Gerado por avaliAI - Proposta Comercial', 20, pageHeight - 10);
-      pdf.text(`Página ${i} de ${pageCount}`, pageWidth - 40, pageHeight - 10);
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent || '';
+      if (!text) return;
+
+      let styleStr = 'normal';
+      if (context.isBold && context.isItalic) styleStr = 'bolditalic';
+      else if (context.isBold) styleStr = 'bold';
+      else if (context.isItalic) styleStr = 'italic';
+
+      doc.setFont(mainFont, styleStr);
+      doc.setFontSize(context.size);
+
+      const tokens = text.split(/(\s+)/);
+
+      tokens.forEach(token => {
+        if (token.length === 0) return;
+
+        const isSpace = /^\s+$/.test(token);
+
+        if (lineBuffer.length === 0 && isSpace) {
+          return;
+        }
+
+        const tokenWidth = doc.getTextWidth(token);
+        const maxW = contentWidth - (context.indent - margin);
+
+        if (tokenWidth > maxW) {
+            if (currentLineWidth > 0) {
+               flushLine(context.align, false, context.indent);
+            }
+            
+            let remainingToken = token;
+            while (remainingToken.length > 0) {
+               let chunk = "";
+               let chunkWidth = 0;
+               let i = 0;
+               
+               while (i < remainingToken.length) {
+                  const char = remainingToken[i];
+                  const charWidth = doc.getTextWidth(char);
+                  if (chunkWidth + charWidth > maxW) break;
+                  chunk += char;
+                  chunkWidth += charWidth;
+                  i++;
+               }
+               
+               const tokenColor = context.isBold ? 0 : 60;
+               lineBuffer.push({
+                  text: chunk,
+                  width: chunkWidth,
+                  isSpace: false,
+                  font: mainFont,
+                  style: styleStr,
+                  size: context.size,
+                  color: tokenColor,
+                  isUnderline: context.isUnderline
+               });
+               
+               if (i < remainingToken.length) {
+                   flushLine(context.align, false, context.indent);
+                   remainingToken = remainingToken.slice(i);
+               } else {
+                   currentLineWidth += chunkWidth;
+                   remainingToken = "";
+               }
+            }
+            return;
+        }
+
+        if (currentLineWidth + tokenWidth > maxW) {
+          if (isSpace) return;
+          flushLine(context.align, false, context.indent);
+        }
+
+        const tokenColor = context.isBold ? 0 : 60;
+
+        lineBuffer.push({
+          text: token,
+          width: tokenWidth,
+          isSpace: isSpace,
+          font: mainFont,
+          style: styleStr,
+          size: context.size,
+          color: tokenColor,
+          isUnderline: context.isUnderline
+        });
+
+        currentLineWidth += tokenWidth;
+      });
     }
-    
-    return pdf;
-  } finally {
-    document.body.removeChild(container);
-  }
+  };
+
+  processNode(body, {
+    font: mainFont,
+    isBold: false,
+    isItalic: false,
+    isUnderline: false,
+    size: 12,
+    align: 'justify',
+    indent: margin,
+    listType: 'none',
+    listCounter: 0
+  });
+
+  flushLine('left', true, margin);
+
+  return doc;
 }
 
-/**
- * Download PDF directly from HTML content
- */
-export async function downloadProposalPDF(
-  htmlContent: string, 
-  options: PDFOptions
-): Promise<void> {
-  const pdf = await generatePDFFromHTML(htmlContent, options);
-  pdf.save(`proposta-${options.client.toLowerCase().replace(/\s+/g, '-')}.pdf`);
+export async function downloadProposalPDF(proposal: string, options: PDFOptions): Promise<void> {
+  const doc = await generateProposalPDF(proposal, options);
+  const safeClientName = options.client.toLowerCase().replace(/[^a-z0-9]/g, '-');
+  doc.save(`proposta-${safeClientName}.pdf`);
 }
 
-/**
- * Get PDF as data URL for preview
- */
-export async function getProposalPDFDataUrl(
-  htmlContent: string, 
-  options: PDFOptions
-): Promise<string> {
-  const pdf = await generatePDFFromHTML(htmlContent, options);
-  return pdf.output('dataurlstring');
+export async function getProposalPDFDataUrl(proposal: string, options: PDFOptions): Promise<string> {
+  const doc = await generateProposalPDF(proposal, options);
+  return doc.output('dataurlstring');
 }
 
-/**
- * Get PDF as Blob
- */
-export async function getProposalPDFBlob(
-  htmlContent: string, 
-  options: PDFOptions
-): Promise<Blob> {
-  const pdf = await generatePDFFromHTML(htmlContent, options);
-  return pdf.output('blob');
+export async function getProposalPDFBlob(proposal: string, options: PDFOptions): Promise<Blob> {
+  const doc = await generateProposalPDF(proposal, options);
+  return doc.output('blob');
 }

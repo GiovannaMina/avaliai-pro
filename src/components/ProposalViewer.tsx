@@ -13,59 +13,107 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+
+function formatInitialContent(markdown: string): string {
+  if (!markdown) return '';
+  if (markdown.startsWith('<')) return markdown;
+  
+  let html = markdown;
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  
+  const lines = html.split('\n');
+  let inList = false;
+  let listType = '';
+  let newLines = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const isBullet = line.startsWith('- ') || line.startsWith('* ');
+    const isOrdered = /^\d+\.\s/.test(line);
+    
+    if (isBullet || isOrdered) {
+      const currentType = isBullet ? 'ul' : 'ol';
+      const content = line.replace(/^(-\s|\*\s|\d+\.\s)/, '');
+      
+      if (!inList) {
+        inList = true;
+        listType = currentType;
+        newLines.push(`<${listType}>`);
+      } else if (listType !== currentType) {
+        newLines.push(`</${listType}>`);
+        listType = currentType;
+        newLines.push(`<${listType}>`);
+      }
+      newLines.push(`<li>${content}</li>`);
+    } else {
+      if (inList) {
+        newLines.push(`</${listType}>`);
+        inList = false;
+      }
+      if (line.length > 0 && !line.startsWith('<')) {
+        newLines.push(`<p>${line}</p>`);
+      } else {
+        newLines.push(line);
+      }
+    }
+  }
+  if (inList) newLines.push(`</${listType}>`);
+  return newLines.join('');
+}
 
 interface ProposalViewerProps {
   proposal: string;
   title: string;
   date: string;
   client: string;
+  themeColor: string;
   onUpdateProposal?: (newProposal: string) => void;
 }
 
-export function ProposalViewer({ proposal, title, date, client, onUpdateProposal }: ProposalViewerProps) {
-  const [editedProposal, setEditedProposal] = useState(proposal);
+export function ProposalViewer({ proposal, title, date, client, themeColor, onUpdateProposal }: ProposalViewerProps) {
+  const [editedProposal, setEditedProposal] = useState(() => formatInitialContent(proposal));
   const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
 
-  // Update editedProposal when proposal changes externally
   useEffect(() => {
-    setEditedProposal(proposal);
+    setEditedProposal(formatInitialContent(proposal));
   }, [proposal]);
 
+  useEffect(() => {
+    let isMounted = true;
+    const generatePreview = async () => {
+      const url = await getProposalPDFDataUrl(editedProposal, { title, client, date, themeColor });
+      if (isMounted) setPreviewUrl(url);
+    };
+    const timer = setTimeout(generatePreview, 100);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [editedProposal, title, client, date, themeColor]);
+
   const handleCopyContent = async () => {
-    // Remove HTML tags to get plain text
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = editedProposal;
     const plainText = tempDiv.textContent || tempDiv.innerText || '';
     await navigator.clipboard.writeText(plainText);
-    toast({ title: 'Proposta copiada!', description: 'O conteúdo foi copiado para a área de transferência.' });
+    toast({ title: 'Copiado!', description: 'Conteúdo copiado.' });
   };
 
-  const [pdfUrl, setPdfUrl] = useState('');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const handleDownload = async () => {
     setIsGeneratingPdf(true);
     try {
-      await downloadProposalPDF(editedProposal, { title, client, date });
-      toast({ title: 'PDF baixado!', description: 'A proposta foi baixada em formato PDF.' });
+      await downloadProposalPDF(editedProposal, { title, client, date, themeColor });
+      toast({ title: 'Sucesso!', description: 'PDF baixado.' });
     } catch (error) {
-      toast({ title: 'Erro ao gerar PDF', description: 'Tente novamente.', variant: 'destructive' });
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
-  const handlePreviewPdf = async () => {
-    setIsGeneratingPdf(true);
-    try {
-      const url = await getProposalPDFDataUrl(editedProposal, { title, client, date });
-      setPdfUrl(url);
-      setShowPdfPreview(true);
-    } catch (error) {
-      toast({ title: 'Erro ao gerar preview', description: 'Tente novamente.', variant: 'destructive' });
+      toast({ title: 'Erro', description: 'Falha ao gerar PDF.', variant: 'destructive' });
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -78,7 +126,6 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b bg-card/50">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-accent">
@@ -90,83 +137,44 @@ export function ProposalViewer({ proposal, title, date, client, onUpdateProposal
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Preview PDF Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handlePreviewPdf}
-            disabled={isGeneratingPdf}
-            className="gap-2"
-          >
-            <Eye className="w-4 h-4" />
-            {isGeneratingPdf ? 'Gerando...' : 'Visualizar PDF'}
+          <Button variant="outline" size="sm" onClick={() => setShowPdfPreview(true)} className="gap-2">
+            <Eye className="w-4 h-4" /> Visualizar PDF
           </Button>
-
-          {/* Share Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-              >
-                <Share2 className="w-4 h-4" />
-                Compartilhar
-                <ChevronDown className="w-3 h-3 ml-1" />
+              <Button variant="outline" size="sm" className="gap-2">
+                <Share2 className="w-4 h-4" /> Ações <ChevronDown className="w-3 h-3 ml-1" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handleCopyContent} className="gap-2 cursor-pointer">
-                <Copy className="w-4 h-4" />
-                Copiar conteúdo
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDownload} className="gap-2 cursor-pointer">
-                <FileDown className="w-4 h-4" />
-                Baixar PDF
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleCopyContent} className="gap-2 cursor-pointer"><Copy className="w-4 h-4" /> Copiar texto</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownload} className="gap-2 cursor-pointer"><FileDown className="w-4 h-4" /> Baixar PDF</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
 
-      {/* Document Editor - Full Screen WYSIWYG */}
       <div className="flex-1 overflow-hidden p-4 md:p-8">
         <div className="h-full max-w-4xl mx-auto">
-          <RichTextEditor
-            content={editedProposal}
-            onChange={handleEditorChange}
-          />
+          <RichTextEditor content={editedProposal} onChange={handleEditorChange} />
         </div>
       </div>
 
-      {/* PDF Preview Modal */}
       <Dialog open={showPdfPreview} onOpenChange={setShowPdfPreview}>
-        <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 [&>button]:hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b">
             <DialogTitle className="flex items-center gap-2">
-              <FileDown className="w-5 h-5 text-primary" />
-              Preview do PDF
+              <FileText className="w-5 h-5 text-primary" /> Preview do PDF
             </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 min-h-0">
-            <iframe
-              src={pdfUrl}
-              className="w-full h-full rounded-lg border"
-              title="Preview do PDF"
-            />
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowPdfPreview(false)}>Fechar</Button>
+              <Button onClick={handleDownload} className="gap-2 bg-primary hover:bg-primary/90">
+                <FileDown className="w-4 h-4" /> Baixar PDF
+              </Button>
+            </div>
           </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowPdfPreview(false)}>
-              Fechar
-            </Button>
-            <Button 
-              onClick={handleDownload} 
-              disabled={isGeneratingPdf}
-              className="gap-2 gradient-brand text-primary-foreground hover:opacity-90"
-            >
-              <FileDown className="w-4 h-4" />
-              {isGeneratingPdf ? 'Gerando...' : 'Baixar PDF'}
-            </Button>
+          <div className="flex-1 bg-muted/30 p-4 overflow-hidden">
+            <iframe src={previewUrl} className="w-full h-full rounded-lg shadow-lg bg-white" title="Preview" />
           </div>
         </DialogContent>
       </Dialog>

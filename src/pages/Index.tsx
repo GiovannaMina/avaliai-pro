@@ -4,59 +4,72 @@ import { ProposalViewer } from '@/components/ProposalViewer';
 import { ProposalGenerator } from '@/components/ProposalGenerator';
 import { ChatPanel } from '@/components/ChatPanel';
 import { Dashboard } from '@/pages/Dashboard';
-import { sampleProposal, proposalMetadata } from '@/data/sampleProposal';
 import { MessageSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-interface UploadedFile {
-  id: string;
-  name: string;
-  content: string;
-  comment: string;
-}
+import { generateProposal } from '@/services/proposalApi';
+import { toast } from '@/hooks/use-toast';
 
 type Screen = 'dashboard' | 'generator' | 'viewer';
+
+interface GeneratePayload {
+  files: any[];
+  companyName: string;
+  brandColor: string;
+}
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [proposal, setProposal] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [metadata, setMetadata] = useState(proposalMetadata);
+  const [activeColor, setActiveColor] = useState('#f97316');
+  const [metadata, setMetadata] = useState({
+    title: 'Proposta Comercial',
+    client: '',
+    date: new Date().toLocaleDateString('pt-BR'),
+  });
 
   const handleUpdateProposal = (newProposal: string) => {
     setProposal(newProposal);
   };
 
-  const handleGenerate = (files: UploadedFile[]) => {
+const handleGenerate = async (
+      files: any[], 
+      metadata: { companyName: string; brandColor: string }
+  ) => { 
     setIsGenerating(true);
-    
-    // Simulate generation delay
-    setTimeout(() => {
-      // If files were uploaded, use their content; otherwise use sample
-      let generatedContent = sampleProposal;
+  
+    setActiveColor(metadata.brandColor);
+
+    try {
+      const response = await generateProposal({
+          files: files,
+          companyName: metadata.companyName,
+          brandColor: metadata.brandColor
+      });
       
-      if (files.length > 0) {
-        // Combine file contents with comments
-        const fileContents = files.map(f => {
-          let content = f.content;
-          if (f.comment) {
-            content = `**Observação:** ${f.comment}\n\n${content}`;
-          }
-          return content;
-        });
-        generatedContent = fileContents.join('\n\n---\n\n');
-      }
-      
-      setProposal(generatedContent);
+      setProposal(response.proposal);
       setMetadata({
-        ...proposalMetadata,
         title: 'Proposta Comercial',
+        client: metadata.companyName,
         date: new Date().toLocaleDateString('pt-BR'),
       });
-      setIsGenerating(false);
       setCurrentScreen('viewer');
-    }, 2000);
+      
+      toast({
+        title: 'Proposta gerada com sucesso!',
+        description: `${response.files_processed.length} arquivo(s) processados.`,
+      });
+    } catch (error) {
+      console.error('Erro ao gerar proposta:', error);
+      toast({
+        title: 'Erro ao gerar proposta',
+        description: error instanceof Error ? error.message : 'Erro ao gerar proposta',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleNavigateToModule = (moduleId: string) => {
@@ -75,40 +88,40 @@ const Index = () => {
     setProposal(null);
   };
 
-  // Dashboard screen
   if (currentScreen === 'dashboard') {
     return <Dashboard onNavigateToModule={handleNavigateToModule} />;
   }
 
-  // Generator screen
   if (currentScreen === 'generator') {
     return (
-      <ProposalGenerator 
-        onGenerate={handleGenerate} 
+      <ProposalGenerator
+        onGenerate={handleGenerate}
         onBack={handleBackToDashboard}
-        isGenerating={isGenerating} 
+        isGenerating={isGenerating}
       />
     );
   }
 
-  // Proposal viewer screen
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col">
       <Header onBackToGenerator={handleBackToGenerator} showBackButton />
-      
+
       <div className="flex-1 flex relative">
-        {/* Main Content - Proposal Viewer */}
-        <div className={`flex-1 transition-all duration-300 ${isChatOpen ? 'lg:mr-[380px]' : ''}`}>
+        <div
+          className={`flex-1 transition-all duration-300 ${
+            isChatOpen ? 'lg:mr-[380px]' : ''
+          }`}
+        >
           <ProposalViewer
             proposal={proposal || ''}
             title={metadata.title}
             date={metadata.date}
             client={metadata.client}
+            themeColor={activeColor}
             onUpdateProposal={handleUpdateProposal}
           />
         </div>
 
-        {/* Chat Panel - Desktop */}
         <div
           className={`hidden lg:flex fixed right-0 top-14 bottom-0 w-[380px] transition-transform duration-300 ${
             isChatOpen ? 'translate-x-0' : 'translate-x-full'
@@ -117,20 +130,18 @@ const Index = () => {
           <ChatPanel onUpdateProposal={handleUpdateProposal} />
         </div>
 
-        {/* Chat Panel - Mobile */}
         {isChatOpen && (
           <div className="lg:hidden fixed inset-0 top-14 z-40 bg-background">
             <ChatPanel onUpdateProposal={handleUpdateProposal} />
           </div>
         )}
 
-        {/* Toggle Chat Button */}
         <Button
           onClick={() => setIsChatOpen(!isChatOpen)}
           size="icon"
-          className={`fixed z-50 shadow-brand transition-all duration-300 ${
-            isChatOpen 
-              ? 'bottom-4 right-[396px] lg:right-[396px] bg-secondary hover:bg-secondary/90' 
+          className={`fixed z-50 transition-all duration-300 ${
+            isChatOpen
+              ? 'bottom-4 right-[396px] bg-secondary hover:bg-secondary/90'
               : 'bottom-4 right-4 gradient-brand hover:opacity-90'
           }`}
         >
