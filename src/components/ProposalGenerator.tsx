@@ -341,14 +341,14 @@ if (isGenerating) {
           </div>
         )}
 
-        {files.length > 0 && (
-          <div className="w-full max-w-2xl mb-8">
-            <div className="flex items-center gap-2 mb-3">
-              <p className="text-base font-bold text-foreground flex items-center gap-2">
-                <FileText className="w-4 h-4 text-primary" />
-                Documentos anexados ({files.length})
-              </p>
-            </div>
+        <div className={`w-full max-w-2xl mb-8 transition-opacity ${files.length === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
+          <div className="flex items-center gap-2 mb-3">
+            <p className="text-base font-bold text-foreground flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" />
+              Documentos anexados {files.length > 0 && `(${files.length})`}
+            </p>
+          </div>
+          {files.length > 0 ? (
             <div className="space-y-2">
               {files.map((file) => (
                 <div
@@ -396,16 +396,20 @@ if (isGenerating) {
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="bg-white rounded-xl px-4 py-3 border border-dashed border-muted-foreground/30 text-sm text-muted-foreground text-center">
+              Nenhum documento anexado ainda
+            </div>
+          )}
+        </div>
 
-        {files.length > 0 && (
+        <div className={`w-full max-w-2xl transition-opacity ${files.length === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
           <ContextQuestionnaire
             answers={answers}
             onAnswerChange={handleAnswerChange}
             showValidation={showValidation}
           />
-        )}
+        </div>
 
         <div className="flex items-center gap-4 mt-auto pt-4">
           <Button
