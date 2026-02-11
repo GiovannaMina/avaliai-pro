@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, FileText, X, Sparkles, ArrowLeft, Trash2, Plus, FileImage, File, FileIcon } from 'lucide-react';
+import { Upload, FileText, X, Sparkles, ArrowLeft, Trash2, Plus, FileImage, File, FileIcon, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/Header';
@@ -150,9 +150,9 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
 
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('image/')) {
-      return <FileImage className="w-4 h-4 text-primary" />;
+      return <FileImage className="w-4 h-4 text-foreground" />;
     }
-    return <FileText className="w-4 h-4 text-primary" />;
+    return <FileText className="w-4 h-4 text-foreground" />;
   };
 
 if (isGenerating) {
@@ -344,7 +344,7 @@ if (isGenerating) {
         <div className={`w-full max-w-2xl mb-12 transition-opacity ${files.length === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
           <div className="flex items-center gap-2 mb-3">
             <p className="text-base font-bold text-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" />
+              <FolderOpen className="w-4 h-4 text-primary" />
               Documentos anexados {files.length > 0 && `(${files.length})`}
             </p>
           </div>
