@@ -227,7 +227,7 @@ if (isGenerating) {
         </div>
 
         {!pendingFile ? (
-          <div className="w-full max-w-2xl mb-6">
+          <div className="w-full max-w-2xl mb-10">
             <div
               className={`relative rounded-2xl border-2 border-dashed transition-all cursor-pointer p-8 ${
                 isDragging 
