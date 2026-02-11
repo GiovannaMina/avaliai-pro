@@ -341,7 +341,7 @@ if (isGenerating) {
           </div>
         )}
 
-        <div className={`w-full max-w-2xl mb-8 transition-opacity ${files.length === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
+        <div className={`w-full max-w-2xl mb-12 transition-opacity ${files.length === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
           <div className="flex items-center gap-2 mb-3">
             <p className="text-base font-bold text-foreground flex items-center gap-2">
               <FileText className="w-4 h-4 text-primary" />
