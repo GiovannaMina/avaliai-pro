@@ -403,7 +403,8 @@ if (isGenerating) {
           )}
         </div>
 
-        <div className={`w-full max-w-2xl mt-4 transition-opacity ${files.length === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
+        <div className={`w-full max-w-2xl transition-opacity ${files.length === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
+          <hr className="border-t border-border/60 mb-6" />
           <ContextQuestionnaire
             answers={answers}
             onAnswerChange={handleAnswerChange}
