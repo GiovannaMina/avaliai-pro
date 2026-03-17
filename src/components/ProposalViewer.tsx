@@ -1,4 +1,4 @@
-import { Copy, FileText, Share2, FileDown, ChevronDown, Eye } from 'lucide-react';
+import { Copy, FileText, Share2, FileDown, ChevronDown, Eye, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
@@ -15,56 +15,14 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
+import MarkdownIt from 'markdown-it';
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+});
 
-function formatInitialContent(markdown: string): string {
-  if (!markdown) return '';
-  if (markdown.startsWith('<')) return markdown;
-  
-  let html = markdown;
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  
-  const lines = html.split('\n');
-  let inList = false;
-  let listType = '';
-  let newLines = [];
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    const isBullet = line.startsWith('- ') || line.startsWith('* ');
-    const isOrdered = /^\d+\.\s/.test(line);
-    
-    if (isBullet || isOrdered) {
-      const currentType = isBullet ? 'ul' : 'ol';
-      const content = line.replace(/^(-\s|\*\s|\d+\.\s)/, '');
-      
-      if (!inList) {
-        inList = true;
-        listType = currentType;
-        newLines.push(`<${listType}>`);
-      } else if (listType !== currentType) {
-        newLines.push(`</${listType}>`);
-        listType = currentType;
-        newLines.push(`<${listType}>`);
-      }
-      newLines.push(`<li>${content}</li>`);
-    } else {
-      if (inList) {
-        newLines.push(`</${listType}>`);
-        inList = false;
-      }
-      if (line.length > 0 && !line.startsWith('<')) {
-        newLines.push(`<p>${line}</p>`);
-      } else {
-        newLines.push(line);
-      }
-    }
-  }
-  if (inList) newLines.push(`</${listType}>`);
-  return newLines.join('');
-}
+
 
 interface ProposalViewerProps {
   proposal: string;
@@ -72,17 +30,20 @@ interface ProposalViewerProps {
   date: string;
   client: string;
   themeColor: string;
+  proposalId: string;
   onUpdateProposal?: (newProposal: string) => void;
 }
 
-export function ProposalViewer({ proposal, title, date, client, themeColor, onUpdateProposal }: ProposalViewerProps) {
-  const [editedProposal, setEditedProposal] = useState(() => formatInitialContent(proposal));
+export function ProposalViewer({ proposal, title, date, client, themeColor, proposalId, onUpdateProposal }: ProposalViewerProps) {
+  console.log("DEBUG - ID da Proposta no Viewer:", proposalId);
+  
+  const [editedProposal, setEditedProposal] = useState(() => md.render(proposal || ''));
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
 
   useEffect(() => {
-    setEditedProposal(formatInitialContent(proposal));
-  }, [proposal]);
+  setEditedProposal(md.render(proposal || ''));
+}, [proposal]);
 
   useEffect(() => {
     let isMounted = true;
@@ -124,6 +85,79 @@ export function ProposalViewer({ proposal, title, date, client, themeColor, onUp
     onUpdateProposal?.(content);
   };
 
+ //
+const handleSaveNewVersion = async () => {
+  if (!proposalId) {
+    toast({ 
+      title: 'Erro', 
+      description: 'ID da proposta não encontrado.', 
+      variant: 'destructive' 
+    });
+    return;
+  }
+
+  const payload = {
+    companyName: client,    
+    brandColor: themeColor, 
+    answers: {},          
+    files: [],             
+    new_content: editedProposal 
+  };
+
+  console.log("📤 Trying to save new version for ID:", proposalId);
+
+  try {
+    const response = await fetch(`http://localhost:8000/api/update-proposal/${proposalId}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify(payload),
+    });
+
+    toast({ 
+      title: 'Sucesso!', 
+      description: 'Nova versão salva com sucesso no histórico.' 
+    });
+
+    if (onUpdateProposal) {
+      onUpdateProposal(editedProposal);
+    }
+
+  } catch (error: any) {
+    console.error("Erro detalhado no handleSaveNewVersion:", error);
+    toast({ 
+      title: 'Falha ao atualizar', 
+      description: error.message || 'Erro de conexão com o servidor', 
+      variant: 'destructive' 
+    });
+  }
+};
+
+useEffect(() => {
+    const hadleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+        event.preventDefault();
+        handleSaveNewVersion();
+      }
+    };
+    window.addEventListener('keydown', hadleKeyDown);
+    return () => {      window.removeEventListener('keydown', hadleKeyDown);
+    };
+  }, [editedProposal, proposalId]);
+
+useEffect(() => {
+    const hadleKeyEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showPdfPreview) {
+        setShowPdfPreview(false);
+      }
+    };
+    window.addEventListener('keydown', hadleKeyEsc);
+    return () => {
+      window.removeEventListener('keydown', hadleKeyEsc);
+    };
+  }, [showPdfPreview]);
+
   return (
     <div className="flex flex-col h-full bg-background">
       <div className="flex items-center justify-between px-6 py-4 border-b bg-card/50">
@@ -140,7 +174,7 @@ export function ProposalViewer({ proposal, title, date, client, themeColor, onUp
           <Button variant="outline" size="sm" onClick={() => setShowPdfPreview(true)} className="gap-2">
             <Eye className="w-4 h-4" /> Visualizar PDF
           </Button>
-          <DropdownMenu>
+          {/*<DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
                 <Share2 className="w-4 h-4" /> Ações <ChevronDown className="w-3 h-3 ml-1" />
@@ -150,7 +184,10 @@ export function ProposalViewer({ proposal, title, date, client, themeColor, onUp
               <DropdownMenuItem onClick={handleCopyContent} className="gap-2 cursor-pointer"><Copy className="w-4 h-4" /> Copiar texto</DropdownMenuItem>
               <DropdownMenuItem onClick={handleDownload} className="gap-2 cursor-pointer"><FileDown className="w-4 h-4" /> Baixar PDF</DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
+          <Button variant="outline" size="sm" onClick={handleSaveNewVersion} className="gap-2 border-orange-500 text-orange-500 hover:bg-orange-50">
+            <Save className="w-4 h-4" /> Salvar Versão Atual
+          </Button>
         </div>
       </div>
 

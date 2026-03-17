@@ -246,6 +246,7 @@
 
   .wysiwyg-editor ul li::marker {
     color: #000000;
+
   }
 
   .wysiwyg-editor ul li::before {
@@ -268,6 +269,26 @@
   .wysiwyg-editor ol li {
     padding-left: 4pt;
     margin-bottom: 4pt;
+  }
+
+  .wysiwyg-editor ul ul,
+  .wysiwyg-editor ol ul,
+  .wysiwyg-editor ul ol,
+  .wysiwyg-editor ol ol {
+    margin-bottom: 0;
+    margin-top: 4pt;
+  }
+
+  .wysiwyg-editor ul ul li::before {
+    background-color: transparent;
+    border: 1px solid #000000;
+    box-sizing: border-box;
+  }
+
+  .wysiwyg-editor ul ul ul li::before {
+    background-color: #000000;
+    border-radius: 0;
+    border: none;
   }
 
   .wysiwyg-editor strong {
@@ -301,6 +322,45 @@
 
   .wysiwyg-editor [style*="text-align: left"] {
     text-align: left;
+  }
+
+  .wysiwyg-editor table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+    margin: 1rem 0;
+    overflow: hidden;
+    border: 1px solid #ced4da;
+  }
+
+  .wysiwyg-editor table td,
+  .wysiwyg-editor table th {
+    min-width: 1em;
+    border: 1px solid #ced4da;
+    padding: 5px 8px;
+    vertical-align: top;
+    box-sizing: border-box;
+    position: relative;
+    width: auto !important;
+  }
+
+  .wysiwyg-editor table th {
+    font-weight: bold;
+    text-align: left;
+    background-color: #f8f9fa;
+  }
+
+  .wysiwyg-editor table .selectedCell:after {
+    z-index: 2;
+    position: absolute;
+    content: "";
+    left: 0; right: 0; top: 0; bottom: 0;
+    background: rgba(200, 200, 255, 0.4);
+    pointer-events: none;
+  }
+
+  .wysiwyg-editor table .column-resize-handle {
+    cursor: col-resize !important;
   }
 }
 
