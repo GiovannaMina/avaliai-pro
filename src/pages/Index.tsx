@@ -77,7 +77,7 @@ const handleGenerate = async (
 
   const handleNavigateToModule = (moduleId: string) => {
     if (moduleId === 'proposal-generator') {
-      setCurrentScreen('generator');
+      setCurrentScreen('hub');
     }
   };
 
