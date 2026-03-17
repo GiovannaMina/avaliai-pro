@@ -4,12 +4,13 @@ import { ProposalViewer } from '@/components/ProposalViewer';
 import { ProposalGenerator } from '@/components/ProposalGenerator';
 import { ChatPanel } from '@/components/ChatPanel';
 import { Dashboard } from '@/pages/Dashboard';
+import { ProposalHub } from '@/pages/ProposalHub';
 import { MessageSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { sampleProposal } from '@/data/sampleProposal';
 
-type Screen = 'dashboard' | 'generator' | 'viewer';
+type Screen = 'dashboard' | 'hub' | 'generator' | 'my-proposals' | 'viewer';
 
 interface GeneratePayload {
   files: any[];
@@ -76,7 +77,7 @@ const handleGenerate = async (
 
   const handleNavigateToModule = (moduleId: string) => {
     if (moduleId === 'proposal-generator') {
-      setCurrentScreen('generator');
+      setCurrentScreen('hub');
     }
   };
 
@@ -86,7 +87,7 @@ const handleGenerate = async (
   };
 
   const handleBackToGenerator = () => {
-    setCurrentScreen('generator');
+    setCurrentScreen('hub');
     setProposal(null);
   };
 
@@ -94,11 +95,38 @@ const handleGenerate = async (
     return <Dashboard onNavigateToModule={handleNavigateToModule} />;
   }
 
+  if (currentScreen === 'hub') {
+    return (
+      <ProposalHub
+        onNewProposal={() => setCurrentScreen('generator')}
+        onMyProposals={() => setCurrentScreen('my-proposals')}
+        onBack={handleBackToDashboard}
+      />
+    );
+  }
+
+  if (currentScreen === 'my-proposals') {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-1 flex flex-col items-center justify-center px-4">
+          <p className="text-muted-foreground text-sm">Em breve...</p>
+          <button
+            onClick={() => setCurrentScreen('hub')}
+            className="mt-4 text-sm text-primary hover:underline"
+          >
+            Voltar
+          </button>
+        </main>
+      </div>
+    );
+  }
+
   if (currentScreen === 'generator') {
     return (
       <ProposalGenerator
         onGenerate={handleGenerate}
-        onBack={handleBackToDashboard}
+        onBack={() => setCurrentScreen('hub')}
         isGenerating={isGenerating}
       />
     );
