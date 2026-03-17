@@ -18,6 +18,13 @@ interface UploadedFile {
   originalFile: File;
 }
 
+interface PendingFile {
+  name: string;
+  content: string;
+  fileType: string;
+  originalFile: File;
+}
+
 interface ProposalGeneratorProps {
   onGenerate: (files: UploadedFile[], metadata: { companyName: string; brandColor: string; answers: Record<string, string> }) => void;
   onBack: () => void;
@@ -29,12 +36,9 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [showValidation, setShowValidation] = useState(false);
   
-  const [pendingFile, setPendingFile] = useState<{ 
-    name: string; 
-    content: string; 
-    fileType: string; 
-    originalFile: File; 
-  } | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+
+  const [lastSelectedType, setLastSelectedType] = useState<'reference' | 'input'>('reference');
 
   const [selectedType, setSelectedType] = useState<'reference' | 'input' | ''>('');
   const [companyName, setCompanyName] = useState('');
@@ -52,29 +56,32 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
     .every((q) => (answers[q.id] || '').trim() !== '');
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFile = e.target.files?.[0];
-    if (!uploadedFile) return;
-    processFile(uploadedFile);
+    const uploadedFiles = e.target.files;
+    if (!uploadedFiles) return;
+    
+    processFiles(Array.from(uploadedFiles));
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const processFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      
-      setPendingFile({
-        name: file.name,
-        content,
-        fileType: file.type || 'unknown',
-        originalFile: file,
-      });
-      setSelectedType('');
-    };
-    reader.readAsDataURL(file);
+  const processFiles = (filesList: File[]) => {
+    filesList.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        
+        setPendingFiles((prev) => [...prev, {
+          name: file.name,
+          content,
+          fileType: file.type || 'unknown',
+          originalFile: file,
+        }]);
+        setSelectedType(lastSelectedType);
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -94,34 +101,37 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
     e.stopPropagation();
     setIsDragging(false);
 
-    const droppedFile = e.dataTransfer.files?.[0];
-    if (droppedFile) {
-      processFile(droppedFile);
+    const droppedFiles = e.dataTransfer.files;
+    if (droppedFiles) {
+      processFiles(Array.from(droppedFiles));
     }
   };
 
   const handleConfirmFile = () => {
-    if (!pendingFile || !selectedType) return;
+    if (pendingFiles.length === 0 || !selectedType) return;
+
+    const currentFile = pendingFiles[0];
 
     setFiles((prev) => [
       ...prev,
       {
         id: Date.now().toString() + Math.random(),
-        name: pendingFile.name,
-        content: pendingFile.content,
+        name: currentFile.name,
+        content: currentFile.content,
         comment: '',
-        type: selectedType,
-        fileType: pendingFile.fileType,
-        originalFile: pendingFile.originalFile, 
+        type: selectedType as 'reference' | 'input',
+        fileType: currentFile.fileType,
+        originalFile: currentFile.originalFile, 
       },
     ]);
-    setPendingFile(null);
-    setSelectedType('');
+    
+    setPendingFiles((prev) => prev.slice(1));
+    setSelectedType(lastSelectedType);
   };
 
   const handleCancelPending = () => {
-    setPendingFile(null);
-    setSelectedType('');
+    setPendingFiles((prev) => prev.slice(1));
+    setSelectedType(lastSelectedType);
   };
 
   const removeFile = (id: string) => {
@@ -140,10 +150,16 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
       return;
     }
     if (files.length > 0 && companyName.trim()) {
+      const answersWithLabels: Record<string, string> = {};
+      CONTEXT_QUESTIONS.forEach((q) => {
+        if (answers[q.id]?.trim()) {
+          answersWithLabels[q.label] = answers[q.id];
+        }
+      });
       onGenerate(files, {
         companyName,
         brandColor,
-        answers,
+        answers: answersWithLabels,
       });
     }
   };
@@ -155,7 +171,7 @@ export function ProposalGenerator({ onGenerate, onBack, isGenerating = false }: 
     return <FileText className="w-4 h-4 text-foreground" />;
   };
 
-if (isGenerating) {
+  if (isGenerating) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
         <Header />
@@ -226,7 +242,7 @@ if (isGenerating) {
           </div>
         </div>
 
-        {!pendingFile ? (
+        {pendingFiles.length === 0 ? (
           <div className="w-full max-w-2xl mb-12">
             <div
               className={`relative rounded-2xl border-2 border-dashed transition-all cursor-pointer p-8 ${
@@ -245,6 +261,7 @@ if (isGenerating) {
                 accept="*/*"
                 onChange={handleFileUpload}
                 className="hidden"
+                multiple
               />
               <div className="flex flex-col items-center justify-center gap-3">
                 <div className="p-4 rounded-full bg-primary/10">
@@ -271,8 +288,16 @@ if (isGenerating) {
                 <FileIcon className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground truncate">{pendingFile.name}</p>
-                <p className="text-xs text-muted-foreground">Selecione o tipo do documento</p>
+                <p className="font-medium text-foreground truncate">{pendingFiles[0].name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {pendingFiles.length > 1 ? (
+                    <>
+                      Selecione o tipo do documento. Restam <strong>{pendingFiles.length}</strong> documentos para classificar.
+                    </>
+                  ) : (
+                    'Selecione o tipo do documento.'
+                  )}
+                </p>
               </div>
               <Button
                 variant="ghost"
@@ -286,7 +311,11 @@ if (isGenerating) {
 
             <RadioGroup
               value={selectedType}
-              onValueChange={(value) => setSelectedType(value as 'reference' | 'input')}
+              onValueChange={(value) => {
+                const val = value as 'reference' | 'input';
+                setSelectedType(val);
+                setLastSelectedType(val);
+              }}
               className="space-y-3"
             >
               <div 
@@ -295,7 +324,10 @@ if (isGenerating) {
                     ? 'border-primary bg-primary/5' 
                     : 'border-primary/20 hover:border-primary/40'
                 }`}
-                onClick={() => setSelectedType('reference')}
+                onClick={() => {
+                  setSelectedType('reference');
+                  setLastSelectedType('reference');
+                }}
               >
                 <RadioGroupItem value="reference" id="reference" className="mt-0.5" />
                 <div className="flex-1">
@@ -314,7 +346,10 @@ if (isGenerating) {
                     ? 'border-primary bg-primary/5' 
                     : 'border-primary/20 hover:border-primary/40'
                 }`}
-                onClick={() => setSelectedType('input')}
+                onClick={() => {
+                  setSelectedType('input');
+                  setLastSelectedType('input');
+                }}
               >
                 <RadioGroupItem value="input" id="input" className="mt-0.5" />
                 <div className="flex-1">
@@ -335,7 +370,7 @@ if (isGenerating) {
                 className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
               >
                 <Plus className="w-4 h-4" />
-                Adicionar Documento
+                {pendingFiles.length > 1 ? 'Próximo Arquivo' : 'Adicionar Documento'}
               </Button>
             </div>
           </div>
@@ -423,7 +458,7 @@ if (isGenerating) {
 
           <Button
             onClick={handleGenerate}
-            disabled={files.length === 0 || !companyName.trim() || !!pendingFile || !areRequiredAnswersFilled}
+            disabled={files.length === 0 || !companyName.trim() || pendingFiles.length > 0 || !areRequiredAnswersFilled}
             className="bg-primary text-primary-foreground hover:bg-primary/90 px-10 py-6 text-base font-semibold rounded-full shadow-lg transition-all gap-2 disabled:opacity-50"
           >
             <Sparkles className="w-5 h-5" />

@@ -157,7 +157,8 @@ export async function generateProposalPDF(proposal: string, options: PDFOptions)
     align: string, 
     indent: number, 
     listType: 'ul' | 'ol' | 'none', 
-    listCounter: number 
+    listCounter: number,
+    listDepth: number
   }) => {
     
     if (node.nodeType === Node.ELEMENT_NODE) {
@@ -175,6 +176,236 @@ export async function generateProposalPDF(proposal: string, options: PDFOptions)
 
       const isBlock = ['p', 'div', 'h1', 'h2', 'h3', 'li', 'ul', 'ol'].includes(tagName);
 
+      if (tagName === 'table') {
+        flushLine(current.align, true, current.indent);
+        yPosition += 8;
+        checkNewPage(15);
+
+        const rows = Array.from(el.querySelectorAll('tr'));
+        if (rows.length === 0) return;
+
+        let maxCols = 0;
+        const firstRowCells = Array.from(rows[0].querySelectorAll('th, td'));
+        const explicitWidths: number[] = [];
+        let hasExplicitWidths = false;
+
+        firstRowCells.forEach(c => {
+            const span = parseInt(c.getAttribute('colspan') || '1', 10);
+            maxCols += span;
+            const cw = c.getAttribute('colwidth');
+            if (cw) {
+                hasExplicitWidths = true;
+                cw.split(',').forEach(w => explicitWidths.push(parseInt(w, 10)));
+            } else {
+                for(let i=0; i<span; i++) explicitWidths.push(0);
+            }
+        });
+
+        if (maxCols === 0) return;
+
+        const tableAvailableWidth = contentWidth - (current.indent - margin);
+        const pdfColWidths: number[] = [];
+
+        if (hasExplicitWidths) {
+            const totalExplicit = explicitWidths.reduce((a,b) => a + (b || 100), 0);
+            explicitWidths.forEach(w => {
+                pdfColWidths.push(((w || 100) / totalExplicit) * tableAvailableWidth);
+            });
+        } else {
+            for(let i=0; i<maxCols; i++) {
+                pdfColWidths.push(tableAvailableWidth / maxCols);
+            }
+        }
+
+        const cellPadding = 4;
+
+        interface RenderWord { text: string; isBold: boolean; isItalic: boolean; size: number; width: number; }
+        interface RenderLine { words: RenderWord[]; width: number; maxHeight: number; align: string; }
+
+        rows.forEach(row => {
+           const cells = Array.from(row.querySelectorAll('th, td'));
+           let rowHeight = 0;
+           const cellData: { lines: RenderLine[], isHeader: boolean, cellW: number }[] = [];
+           let colIndex = 0;
+
+           cells.forEach(cell => {
+              const isHeader = cell.tagName.toLowerCase() === 'th';
+              const colSpan = parseInt(cell.getAttribute('colspan') || '1', 10);
+              
+              const cellW = pdfColWidths.slice(colIndex, colIndex + colSpan).reduce((a,b) => a+b, 0);
+              colIndex += colSpan;
+
+              const paragraphs: RenderLine[][] = [];
+              const childNodes = Array.from(cell.childNodes);
+              const nodesToProcess = childNodes.length > 0 ? childNodes : [document.createTextNode(cell.textContent || '')];
+
+              nodesToProcess.forEach(child => {
+                  const pAlign = (child as HTMLElement).style?.textAlign || 'left';
+                  let currentSize = isHeader ? 11 : current.size;
+                  if ((child as HTMLElement).style?.fontSize) {
+                      currentSize = parseSize((child as HTMLElement).style.fontSize);
+                  }
+
+                  const words: RenderWord[] = [];
+
+                  const traverse = (node: Node, ctx: any) => {
+                      if (node.nodeType === Node.TEXT_NODE) {
+                          const text = node.textContent || '';
+                          if (!text.trim() && text !== ' ') return;
+                          
+                          const textWords = text.split(/(\s+)/).filter(w => w.length > 0);
+                          textWords.forEach(w => {
+                              doc.setFont(mainFont, (ctx.isBold && ctx.isItalic) ? 'bolditalic' : ctx.isBold ? 'bold' : ctx.isItalic ? 'italic' : 'normal');
+                              doc.setFontSize(ctx.size);
+                              const wWidth = doc.getTextWidth(w);
+                              
+                              const maxContentW = cellW - (cellPadding * 2);
+
+                              if (wWidth > maxContentW && !/^\s+$/.test(w)) {
+                                  let chunk = '';
+                                  let chunkW = 0;
+                                  for (let i = 0; i < w.length; i++) {
+                                      const charW = doc.getTextWidth(w[i]);
+                                      if (chunkW + charW > maxContentW && chunk.length > 0) {
+                                          words.push({ text: chunk, ...ctx, width: chunkW });
+                                          chunk = w[i];
+                                          chunkW = charW;
+                                      } else {
+                                          chunk += w[i];
+                                          chunkW += charW;
+                                      }
+                                  }
+                                  if (chunk.length > 0) {
+                                      words.push({ text: chunk, ...ctx, width: chunkW });
+                                  }
+                              } else {
+                                  words.push({ text: w, ...ctx, width: wWidth });
+                              }
+                          });
+                      } else if (node.nodeType === Node.ELEMENT_NODE) {
+                          const e = node as HTMLElement;
+                          const tag = e.tagName.toLowerCase();
+                          const newCtx = { ...ctx };
+                          if (tag === 'strong' || tag === 'b' || Number(e.style.fontWeight) >= 700) newCtx.isBold = true;
+                          if (tag === 'em' || tag === 'i') newCtx.isItalic = true;
+                          if (e.style.fontSize) newCtx.size = parseSize(e.style.fontSize);
+                          if (e.style.textAlign) newCtx.align = e.style.textAlign;
+                          
+                          Array.from(node.childNodes).forEach(c => traverse(c, newCtx));
+                      }
+                  };
+
+                  traverse(child, { isBold: isHeader, isItalic: false, size: currentSize });
+
+                  const maxContentW = cellW - (cellPadding * 2);
+                  const lines: RenderLine[] = [];
+                  let currentLineWords: RenderWord[] = [];
+                  let currentLineW = 0;
+
+                  words.forEach(w => {
+                      const isSpace = /^\s+$/.test(w.text);
+                      if (currentLineW + w.width > maxContentW && currentLineWords.length > 0) {
+                          if (isSpace) return; 
+                          
+                          while(currentLineWords.length > 0 && /^\s+$/.test(currentLineWords[currentLineWords.length - 1].text)) {
+                              const removed = currentLineWords.pop()!;
+                              currentLineW -= removed.width;
+                          }
+
+                          lines.push({
+                              words: currentLineWords,
+                              width: currentLineW,
+                              maxHeight: Math.max(...currentLineWords.map(cw => cw.size * 0.45), currentSize * 0.45),
+                              align: pAlign
+                          });
+                          currentLineWords = [w];
+                          currentLineW = w.width;
+                      } else {
+                          currentLineWords.push(w);
+                          currentLineW += w.width;
+                      }
+                  });
+                  if (currentLineWords.length > 0) {
+                      lines.push({
+                          words: currentLineWords,
+                          width: currentLineW,
+                          maxHeight: Math.max(...currentLineWords.map(cw => cw.size * 0.45), currentSize * 0.45),
+                          align: pAlign
+                      });
+                  }
+                  
+                  if (lines.length > 0) paragraphs.push(lines);
+              });
+
+              let cellTotalHeight = cellPadding * 2;
+              const flatLines: RenderLine[] = [];
+              paragraphs.forEach((lines, idx) => {
+                  lines.forEach(l => {
+                      flatLines.push(l);
+                      cellTotalHeight += l.maxHeight;
+                  });
+                  if (idx < paragraphs.length - 1) cellTotalHeight += 3; 
+              });
+              
+              if (cellTotalHeight > rowHeight) rowHeight = cellTotalHeight;
+              cellData.push({ lines: flatLines, isHeader, cellW });
+           });
+
+           checkNewPage(rowHeight);
+
+           let currentX = current.indent;
+           cellData.forEach(data => {
+              doc.setDrawColor(180, 180, 180);
+              doc.setLineWidth(0.1);
+              if (data.isHeader) {
+                  doc.setFillColor(245, 245, 245);
+                  doc.rect(currentX, yPosition, data.cellW, rowHeight, 'FD');
+              } else {
+                  doc.rect(currentX, yPosition, data.cellW, rowHeight, 'S');
+              }
+
+              let textY = yPosition + cellPadding; 
+              
+              data.lines.forEach(line => {
+                 let lineX = currentX + cellPadding;
+                 const maxContentW = data.cellW - (cellPadding * 2);
+                 
+                 const cleanWords = [...line.words];
+                 while(cleanWords.length > 0 && /^\s+$/.test(cleanWords[cleanWords.length - 1].text)) {
+                     cleanWords.pop();
+                 }
+                 const cleanWidth = cleanWords.reduce((sum, w) => sum + w.width, 0);
+
+                 if (line.align === 'center') {
+                     lineX += (maxContentW - cleanWidth) / 2;
+                 } else if (line.align === 'right') {
+                     lineX += (maxContentW - cleanWidth);
+                 }
+
+                 textY += line.maxHeight;
+
+                 cleanWords.forEach(w => {
+                    doc.setFont(mainFont, (w.isBold && w.isItalic) ? 'bolditalic' : w.isBold ? 'bold' : w.isItalic ? 'italic' : 'normal');
+                    doc.setFontSize(w.size);
+                    doc.setTextColor(w.isBold ? 0 : 60);
+                    if (!/^\s+$/.test(w.text)) {
+                        doc.text(w.text, lineX, textY - (line.maxHeight * 0.15));
+                    }
+                    lineX += w.width;
+                 });
+              });
+
+              currentX += data.cellW;
+           });
+
+           yPosition += rowHeight;
+        });
+
+        yPosition += 8;
+        checkNewPage(10);
+        return;
+      }
+
       if (['h1', 'h2', 'h3'].includes(tagName)) {
         current.isBold = true;
         current.isItalic = false;
@@ -190,11 +421,19 @@ export async function generateProposalPDF(proposal: string, options: PDFOptions)
         flushLine(current.align, true, current.indent);
       }
 
-      if (tagName === 'ol') { current.listType = 'ol'; current.listCounter = 1; }
-      if (tagName === 'ul') { current.listType = 'ul'; }
+      if (tagName === 'ol' || tagName === 'ul') {
+          current.indent += 12;
+          current.listDepth = (current.listDepth || 0) + 1;
+          
+          if (tagName === 'ol') {
+              current.listType = 'ol';
+              current.listCounter = 1;
+          } else {
+              current.listType = 'ul';
+          }
+      }
 
       if (tagName === 'li') {
-        current.indent = margin + 12;
         
         let styleStr = 'normal';
         if (current.isBold && current.isItalic) styleStr = 'bolditalic';
@@ -206,12 +445,22 @@ export async function generateProposalPDF(proposal: string, options: PDFOptions)
         doc.setTextColor(0, 0, 0); 
         
         if (current.listType === 'ol') {
-          doc.text(`${current.listCounter}.`, margin + 4, yPosition);
-          current.listCounter++; 
-        } else {
-          const bulletY = yPosition - (current.size * 0.115); 
-          doc.setFillColor(0, 0, 0);
-          doc.circle(margin + 4, bulletY, 1.2, 'F');
+            doc.text(`${current.listCounter}.`, current.indent - 7, yPosition);
+          } else {
+            const bulletY = yPosition - (current.size * 0.115); 
+            const depth = current.listDepth || 1;
+            
+          if (depth === 1) {
+              doc.setFillColor(0, 0, 0);
+              doc.circle(current.indent - 6, bulletY, 1.2, 'F'); 
+          } else if (depth === 2) {
+              doc.setDrawColor(0, 0, 0);
+              doc.setLineWidth(0.3);
+              doc.circle(current.indent - 6, bulletY, 1.2, 'S'); 
+          } else {
+              doc.setFillColor(0, 0, 0);
+              doc.rect(current.indent - 7, bulletY - 1, 2.2, 2.2, 'F'); 
+          }
         }
       }
 
@@ -335,7 +584,8 @@ export async function generateProposalPDF(proposal: string, options: PDFOptions)
     align: 'justify',
     indent: margin,
     listType: 'none',
-    listCounter: 0
+    listCounter: 0,
+    listDepth: 0
   });
 
   flushLine('left', true, margin);

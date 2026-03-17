@@ -21,6 +21,7 @@ interface GeneratePayload {
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [proposal, setProposal] = useState<string | null>(null);
+  const [proposalId, setProposalId] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeColor, setActiveColor] = useState('#f97316');
@@ -51,6 +52,7 @@ const handleGenerate = async (
       });
       
       setProposal(response.proposal);
+      setProposalId(response.proposalId);
       setMetadata({
         title: 'Proposta Comercial',
         client: metadata.companyName,
@@ -105,12 +107,12 @@ const handleGenerate = async (
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 flex flex-col">
+    <div className="h-screen bg-muted/30 flex flex-col overflow-hidden">
       <Header onBackToGenerator={handleBackToGenerator} showBackButton />
 
-      <div className="flex-1 flex relative">
+      <div className="flex-1 flex relative overflow-hidden">
         <div
-          className={`flex-1 transition-all duration-300 ${
+          className={`flex-1 h-full transition-all duration-300 ${
             isChatOpen ? 'lg:mr-[380px]' : ''
           }`}
         >
@@ -120,6 +122,7 @@ const handleGenerate = async (
             date={metadata.date}
             client={metadata.client}
             themeColor={activeColor}
+            proposalId={proposalId || ''} 
             onUpdateProposal={handleUpdateProposal}
           />
         </div>

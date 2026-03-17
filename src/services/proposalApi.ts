@@ -3,6 +3,7 @@ const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost
 export interface GenerateProposalResponse {
   success: boolean;
   proposal: string;
+  proposalId: string;
   files_processed: string[];
 }
 
@@ -34,7 +35,7 @@ export async function generateProposal(metadata?: { files?: any[]; companyName?:
   });
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 300000); // 300s (5 min) timeout
+  const timeoutId = setTimeout(() => controller.abort(), 300000);
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/generate-proposal`, {
