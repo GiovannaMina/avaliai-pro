@@ -87,7 +87,7 @@ const handleGenerate = async (
   };
 
   const handleBackToGenerator = () => {
-    setCurrentScreen('generator');
+    setCurrentScreen('hub');
     setProposal(null);
   };
 
