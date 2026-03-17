@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { sampleProposal } from '@/data/sampleProposal';
 
-type Screen = 'dashboard' | 'generator' | 'viewer';
+type Screen = 'dashboard' | 'hub' | 'generator' | 'my-proposals' | 'viewer';
 
 interface GeneratePayload {
   files: any[];
