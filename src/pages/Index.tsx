@@ -6,8 +6,8 @@ import { ChatPanel } from '@/components/ChatPanel';
 import { Dashboard } from '@/pages/Dashboard';
 import { MessageSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { generateProposal } from '@/services/proposalApi';
 import { toast } from '@/hooks/use-toast';
+import { sampleProposal } from '@/data/sampleProposal';
 
 type Screen = 'dashboard' | 'generator' | 'viewer';
 
