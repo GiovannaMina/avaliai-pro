@@ -37,38 +37,36 @@ const Index = () => {
 
 const handleGenerate = async (
       files: any[], 
-      metadata: { companyName: string; brandColor: string; answers: Record<string, string> }
+      meta: { companyName: string; brandColor: string; answers: Record<string, string> }
   ) => { 
     setIsGenerating(true);
-  
-    setActiveColor(metadata.brandColor);
+    setActiveColor(meta.brandColor);
+
+    // Simulate generation delay for prototype
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     try {
-      const response = await generateProposal({
-          files: files,
-          companyName: metadata.companyName,
-          brandColor: metadata.brandColor,
-          answers: metadata.answers,
-      });
+      // Build a mock proposal using the sample as base, replacing client name
+      const mockProposal = sampleProposal.replace(/Instituto Porto Seguro/g, meta.companyName);
       
-      setProposal(response.proposal);
-      setProposalId(response.proposalId);
+      setProposal(mockProposal);
+      setProposalId(`mock-${Date.now()}`);
       setMetadata({
         title: 'Proposta Comercial',
-        client: metadata.companyName,
+        client: meta.companyName,
         date: new Date().toLocaleDateString('pt-BR'),
       });
       setCurrentScreen('viewer');
       
       toast({
         title: 'Proposta gerada com sucesso!',
-        description: `${response.files_processed.length} arquivo(s) processados.`,
+        description: `${files.length} arquivo(s) processados.`,
       });
     } catch (error) {
       console.error('Erro ao gerar proposta:', error);
       toast({
         title: 'Erro ao gerar proposta',
-        description: error instanceof Error ? error.message : 'Erro ao gerar proposta',
+        description: 'Erro inesperado ao gerar proposta.',
         variant: 'destructive',
       });
     } finally {
