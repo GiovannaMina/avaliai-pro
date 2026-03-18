@@ -5,6 +5,7 @@ import { ProposalGenerator } from '@/components/ProposalGenerator';
 import { ChatPanel } from '@/components/ChatPanel';
 import { Dashboard } from '@/pages/Dashboard';
 import { ProposalHub } from '@/pages/ProposalHub';
+import { MyProposals } from '@/pages/MyProposals';
 import { MessageSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
