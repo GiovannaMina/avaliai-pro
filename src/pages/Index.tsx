@@ -5,6 +5,7 @@ import { ProposalGenerator } from '@/components/ProposalGenerator';
 import { ChatPanel } from '@/components/ChatPanel';
 import { Dashboard } from '@/pages/Dashboard';
 import { ProposalHub } from '@/pages/ProposalHub';
+import { MyProposals } from '@/pages/MyProposals';
 import { MessageSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
@@ -107,18 +108,20 @@ const handleGenerate = async (
 
   if (currentScreen === 'my-proposals') {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        <main className="flex-1 flex flex-col items-center justify-center px-4">
-          <p className="text-muted-foreground text-sm">Em breve...</p>
-          <button
-            onClick={() => setCurrentScreen('hub')}
-            className="mt-4 text-sm text-primary hover:underline"
-          >
-            Voltar
-          </button>
-        </main>
-      </div>
+      <MyProposals
+        onBack={() => setCurrentScreen('hub')}
+        onOpenProposal={(companyId, proposalId, versionId) => {
+          // For now, load the sample proposal as a placeholder
+          setProposal(sampleProposal);
+          setProposalId(`${proposalId}-${versionId}`);
+          setMetadata({
+            title: 'Proposta Comercial',
+            client: companyId,
+            date: new Date().toLocaleDateString('pt-BR'),
+          });
+          setCurrentScreen('viewer');
+        }}
+      />
     );
   }
 
