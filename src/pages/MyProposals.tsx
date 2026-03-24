@@ -260,6 +260,7 @@ export function MyProposals({ onBack, onOpenProposal }: MyProposalsProps) {
                         {company.proposalCount} proposta{company.proposalCount !== 1 ? 's' : ''}
                       </span>
                     </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                   <button
                     onClick={(e) => {
@@ -271,7 +272,6 @@ export function MyProposals({ onBack, onOpenProposal }: MyProposalsProps) {
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               ))}
             </div>
@@ -308,6 +308,7 @@ export function MyProposals({ onBack, onOpenProposal }: MyProposalsProps) {
                         {proposal.date} · {proposal.versionCount} versão{proposal.versionCount !== 1 ? 'ões' : ''}
                       </span>
                     </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                   <button
                     onClick={(e) => {
@@ -319,7 +320,6 @@ export function MyProposals({ onBack, onOpenProposal }: MyProposalsProps) {
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               ))}
             </div>
