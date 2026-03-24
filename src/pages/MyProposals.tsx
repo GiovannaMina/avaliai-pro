@@ -260,7 +260,6 @@ export function MyProposals({ onBack, onOpenProposal }: MyProposalsProps) {
                         {company.proposalCount} proposta{company.proposalCount !== 1 ? 's' : ''}
                       </span>
                     </div>
-                  </button>
                     <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                   <button
