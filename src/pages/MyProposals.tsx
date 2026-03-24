@@ -310,6 +310,8 @@ export function MyProposals({ onBack, onOpenProposal }: MyProposalsProps) {
                       </span>
                     </div>
                   </button>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -320,7 +322,6 @@ export function MyProposals({ onBack, onOpenProposal }: MyProposalsProps) {
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               ))}
             </div>
