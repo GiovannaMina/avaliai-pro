@@ -308,7 +308,6 @@ export function MyProposals({ onBack, onOpenProposal }: MyProposalsProps) {
                         {proposal.date} · {proposal.versionCount} versão{proposal.versionCount !== 1 ? 'ões' : ''}
                       </span>
                     </div>
-                  </button>
                     <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                   <button
